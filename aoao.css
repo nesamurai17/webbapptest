@@ -32,6 +32,12 @@
             font-weight: 600;
             margin: 0 0 4px 0;
         }
+        .userID {
+            color: rgb(204, 190, 190);
+            font-size: 15px;
+
+
+        }
 
         .profile-stats {
             display: flex;

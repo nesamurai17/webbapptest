@@ -15,6 +15,7 @@
     <div class="content" id="home-container">
         <div class="profile-card">
             <h2 class="profile-name" id="username"> взять из тг </h2>
+            <p class="userID" id="user_id"> 0000    </p>
             <div class="profile-stats">
                 <div class="profile-stat">💎 <span id="balance"></span></div>
                 <div class="profile-stat">⭐ <span id="rating"></span></div>
@@ -158,6 +159,8 @@
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+            document.getElementById("user_id").textContent = tg.initDataUnsafe.user.id;
+
 
             // По умолчанию показываем Home
             switchTab('home');
