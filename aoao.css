@@ -1,0 +1,180 @@
+
+        /* Общие стили */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+        }
+
+        .content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            background: transparent;
+        }
+
+        /* Стили для Home */
+        .profile-card {
+            background: linear-gradient(135deg, #6C5CE7, #4a3fba);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .energy-card, .progress-card, .tasks-card {
+            background: rgba(30, 30, 46, 0.8);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(74, 78, 105, 0.3);
+            color: white;
+        }
+
+        .energy-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .energy-bar {
+            height: 10px;
+            background: rgba(74, 78, 105, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF9A00, #FFCC00);
+            transition: width 0.3s;
+        }
+
+        .energy-btn {
+            width: 100%;
+            padding: 10px;
+            background: #6C5CE7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .progress-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(74, 78, 105, 0.5);
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00C853, #64DD17);
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: #a8a8c0;
+        }
+
+        .tasks-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+
+        .task {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(74, 78, 105, 0.3);
+        }
+
+        .task:last-child {
+            border-bottom: none;
+        }
+
+        .task-checkbox {
+            margin-right: 12px;
+            width: 20px;
+            height: 20px;
+        }
+
+        .task-label {
+            flex-grow: 1;
+            font-size: 14px;
+        }
+
+        .task-reward {
+            color: #4cc9f0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .task.completed .task-label {
+            color: #a8a8c0;
+            text-decoration: line-through;
+        }
+
+        /* Стили для Tasks */
+        .tasks-container {
+            display: none;
+        }
+
+        /* Стили для Market */
+        .market-container {
+            display: none;
+        }
+
+        /* Нижнее меню */
+        .tab-bar {
+            display: flex;
+            background: rgba(30, 30, 46, 0.9);
+            border-top: 1px solid rgba(74, 78, 105, 0.5);
+            padding: 8px 0;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            color: #a8a8c0;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            color: #6C5CE7;
+        }
+
+        .tab-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
