@@ -53,6 +53,15 @@
                 <div class="task-reward">+50 💎</div>
             </div>
         </div>
+
+        <div class="tasks-card">
+            <h3 class="tasks-title">Маркетплейс</h3>
+            <div class="product">
+                <div class="product-name" onclick="updateResources(50, 0)">Бустер энергии</div>
+                <div class="product-price">50 💎</div>
+                <button class="buy-btn">Купить</button>
+            </div>
+        </div>
     </div>
 
     <!-- Контейнер для Tasks -->
@@ -119,23 +128,24 @@
         tg.expand();
         tg.setBackgroundColor('#1a1a2e');
 
-        // Инициализация Telegram WebApp
-
-        // Проверка, первый ли это запуск
-        function isFirstLaunch() {
-            return localStorage.getItem('isRegistered') !== 'true';
+        // Отправка обновленных данных боту
+        function updateResources(newEnergy, newCash) {
+            const data = {
+                energy: newEnergy,
+                cash: newCash
+            };
+            
+            Telegram.WebApp.sendData(JSON.stringify(data));
+            Telegram.WebApp.close();
         }
 
-        // Заполнение данных пользователя
-        function fillUserData() {
-            const user = tg.initDataUnsafe.user;
-            if (user) {
-                const username = `${user.first_name} ${user.last_name || ''}`.trim();
-                document.getElementById('username').textContent = username;
-                
-                // Помечаем, что регистрация выполнена
-                localStorage.setItem('isRegistered', 'true');
-            }
+        // Получение текущего баланса (через бота)
+        async function fetchUserData() {
+            const response = await fetch(`/get_user_data?user_id=${USER_ID}`);
+            const data = await response.json();
+            
+            document.getElementById("cash-display").textContent = data.cash;
+            document.getElementById("energy-display").textContent = data.energy;
         }
 
         // Переключение вкладок
@@ -165,6 +175,8 @@
             // По умолчанию показываем Home
             switchTab('home');
         });
+
+        
 
 </script>
 
