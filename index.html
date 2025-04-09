@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/aoao.css">
+    <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
+</head>
+
+
+<body>
+    <!-- Контейнер для Home -->
+    <div class="content" id="home-container">
+        <div class="profile-card">
+            <h2 class="profile-name" id="username"></h2>
+            <div class="profile-stats">
+                <div class="profile-stat">💎 <span id="balance"></span></div>
+                <div class="profile-stat">⭐ <span id="rating"></span></div>
+                <div class="profile-stat">🏆 <span id="league"></span></div>
+            </div>
+        </div>
+
+        <div class="energy-card">
+            <div class="energy-header">
+                <span>⚡ Энергия</span>
+                <span id="energy-value"></span>
+            </div>
+            <div class="energy-bar">
+                <div class="energy-fill" id="energy-fill"></div>
+            </div>
+            <button class="energy-btn" onclick="refillEnergy()">Пополнить энергию</button>
+        </div>
+
+
+        <div class="tasks-card">
+            <h3 class="tasks-title">Ежедневные задания</h3>
+            <div class="task completed">
+                <input type="checkbox" class="task-checkbox" checked>
+                <div class="task-label">Заработать 100 баллов</div>
+                <div class="task-reward">+20 ⚡</div>
+            </div>
+            <div class="task completed">
+                <input type="checkbox" class="task-checkbox" checked>
+                <div class="task-label">Выполнить 3 задачи</div>
+                <div class="task-reward">+15 💎</div>
+            </div>
+            <div class="task">
+                <input type="checkbox" class="task-checkbox">
+                <div class="task-label">Пригласить друга</div>
+                <div class="task-reward">+50 💎</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для Tasks -->
+    <div class="content tasks-container" id="tasks-container">
+        <div class="tasks-card">
+            <h3 class="tasks-title">Мои задачи</h3>
+            <div class="task">
+                <input type="checkbox" class="task-checkbox">
+                <div class="task-label">Завершить проект WebApp</div>
+                <div class="task-reward">🔹 Высокий приоритет</div>
+            </div>
+            <div class="task">
+                <input type="checkbox" class="task-checkbox">
+                <div class="task-label">Подготовить презентацию</div>
+                <div class="task-reward">🔸 Средний приоритет</div>
+            </div>
+            <div class="task completed">
+                <input type="checkbox" class="task-checkbox" checked>
+                <div class="task-label">Составить отчет</div>
+                <div class="task-reward">✅ Выполнено</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер для Market -->
+    <div class="content market-container" id="market-container">
+        <div class="tasks-card">
+            <h3 class="tasks-title">Маркетплейс</h3>
+            <div class="product">
+                <div class="product-name">Бустер энергии</div>
+                <div class="product-price">50 💎</div>
+                <button class="buy-btn">Купить</button>
+            </div>
+            <div class="product">
+                <div class="product-name">Премиум статус</div>
+                <div class="product-price">200 💎</div>
+                <button class="buy-btn">Купить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Нижнее меню -->
+    <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('home')">
+            <div class="tab-icon">🏠</div>
+            HOME
+        </div>
+        <div class="tab" onclick="switchTab('tasks')">
+            <div class="tab-icon">✅</div>
+            TASKS
+        </div>
+        <div class="tab" onclick="switchTab('market')">
+            <div class="tab-icon">🛒</div>
+            MARKET
+        </div>
+    </div>
+
+</body>
+
+
+<script>
+       // Инициализация Telegram WebApp
+       let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.setBackgroundColor('#1a1a2e');
+
+        // Инициализация Telegram WebApp
+
+        // Проверка, первый ли это запуск
+        function isFirstLaunch() {
+            return localStorage.getItem('isRegistered') !== 'true';
+        }
+
+        // Заполнение данных пользователя
+        function fillUserData() {
+            const user = tg.initDataUnsafe.user;
+            if (user) {
+                const username = `${user.first_name} ${user.last_name || ''}`.trim();
+                document.getElementById('username').textContent = username;
+                
+                // Помечаем, что регистрация выполнена
+                localStorage.setItem('isRegistered', 'true');
+            }
+        }
+
+        // Переключение вкладок
+        function switchTab(tabName) {
+            // Скрываем все контейнеры
+            document.getElementById('home-container').style.display = 'none';
+            document.getElementById('tasks-container').style.display = 'none';
+            document.getElementById('market-container').style.display = 'none';
+
+            // Показываем выбранный контейнер
+            document.getElementById(`${tabName}-container`).style.display = 'block';
+
+            // Обновляем активную вкладку
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+        }
+
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // По умолчанию показываем Home
+            switchTab('home');
+        });
+
+</script>
+
+</html>
