@@ -157,6 +157,7 @@
 
         // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById("username").value = tg.initDataUnsafe.user.first_name;
 
             // По умолчанию показываем Home
             switchTab('home');
