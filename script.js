@@ -1,3 +1,9 @@
+let tg = window.Telegram.WebApp;
+tg.expand();
+tg.setBackgroundColor('#1a1a2e');
+
+
+
 let currentEnergy = 30;
 let balance = 1000000;
 let usdtBalance = 100;
@@ -57,4 +63,13 @@ function startTask(energyCost) {
   alert("Task started!");
 }
 
-document.addEventListener("DOMContentLoaded", updateUI);
+// document.addEventListener("DOMContentLoaded", updateUI);
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+  document.getElementById("user-id").textContent = tg.initDataUnsafe.user.id;
+
+
+  // По умолчанию показываем Home
+  // switchTab('home');
+});
