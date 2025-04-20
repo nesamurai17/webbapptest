@@ -1,187 +1,113 @@
-
 <!DOCTYPE html>
-<html>
-<head>
-    <title>My App</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="aoao.css">
-    <script src="https://telegram.org/js/telegram-web-app.js?56"></script>
-</head>
-
-
-<body>
-    <!-- Контейнер для Home -->
-    <div class="content" id="home-container">
-        <div class="profile-card">
-            <h2 class="profile-name" id="username"> взять из тг </h2>
-            <p class="userID" id="user_id"> 0000    </p>
-            <div class="profile-stats">
-                <div class="profile-stat">💎 <span id="balance"></span></div>
-                <div class="profile-stat">⭐ <span id="rating"></span></div>
-                <div class="profile-stat">🏆 <span id="league"></span></div>
-            </div>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GAME</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="balance-section">
+          <div class="user-name">
+            <h3><i class="fas user-name"></i>взять из тг</h3>
+            <p id="user-id">взять из тг</p>
+          </div>
+          <div class="balance-card">
+            <h3><i class="fas fa-coins"></i> АВВА Коины</h3>
+            <p id="balance">1,000,000 из бд</p>
+          </div>
         </div>
 
-        <div class="energy-card">
-            <div class="energy-header">
-                <span>⚡ Энергия</span>
-                <span id="energy-value"></span>
+        <div class="energy-wrapper">
+          <div class="energy-progress" id="energy-bar">
+            <div class="energy-label">
+              <i class="fas fa-bolt"></i>
+              <span id="energy-percent">3000% из бд</span>
             </div>
-            <div class="energy-bar">
-                <div class="energy-fill" id="energy-fill"></div>
-            </div>
-            <button class="energy-btn" onclick="refillEnergy()">Пополнить энергию</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="task-grid">
+        <div class="task-card">
+          <div class="task-header">
+            <h3>Социальный буст</h3>
+          </div>
+          <div class="reward-badge">
+            <i class="fas fa-gem"></i>
+            <span>Награда: 7 NFT (28 USDT) из бд</span>
+          </div>
+          <p class="task-description">Выполните 5 социальных заданий из бд</p>
+          <button class="btn" onclick="showEnergyModal(10)">
+            <i class="fas fa-play"></i>
+            Начать задание
+          </button>
         </div>
 
+        <div class="task-grid">
+          <div class="task-card">
+            <div class="task-header">
+              <h3>Социальный буст</h3>
+            </div>
+            <div class="reward-badge">
+              <i class="fas fa-gem"></i>
+              <span>Награда: 7 NFT (28 USDT) из бд</span>
+            </div>
+            <p class="task-description">Выполните 5 социальных заданий из бд</p>
+            <button class="btn" onclick="showEnergyModal(10)">
+              <i class="fas fa-play"></i>
+              Начать задание
+            </button>
+          </div>
 
-        <div class="tasks-card">
-            <h3 class="tasks-title">Ежедневные задания</h3>
-            <div class="task completed">
-                <input type="checkbox" class="task-checkbox" checked>
-                <div class="task-label">Заработать 100 баллов</div>
-                <div class="task-reward">+20 ⚡</div>
-            </div>
-            <div class="task completed">
-                <input type="checkbox" class="task-checkbox" checked>
-                <div class="task-label">Выполнить 3 задачи</div>
-                <div class="task-reward">+15 💎</div>
-            </div>
-            <div class="task">
-                <input type="checkbox" class="task-checkbox">
-                <div class="task-label">Пригласить друга</div>
-                <div class="task-reward">+50 💎</div>
-            </div>
+      <div id="energyModal" class="modal">
+        <div class="modal-content">
+          <h3 class="modal-title">
+            <i class="fas fa-charging-station"></i>
+            Повышение энергии
+          </h3>
+          <p id="requiredEnergyText" class="modal-text"></p>
+          <div class="modal-buttons">
+            <button class="btn" onclick="buyWithCoins()">
+              <i class="fas fa-coins"></i>
+              Перейти в бота
+            </button>
+            <button class="btn btn-cancel" onclick="closeModal()">
+              Отмена
+            </button>
+          </div>
         </div>
-
-        <div class="tasks-card">
-            <h3 class="tasks-title">Маркетплейс</h3>
-            <div class="product">
-                <div class="product-name" onclick="updateResources(50, 0)">Бустер энергии</div>
-                <div class="product-price">50 💎</div>
-                <button class="buy-btn">Купить</button>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- Контейнер для Tasks -->
-    <div class="content tasks-container" id="tasks-container">
-        <div class="tasks-card">
-            <h3 class="tasks-title">Мои задачи</h3>
-            <div class="task">
-                <input type="checkbox" class="task-checkbox">
-                <div class="task-label">Завершить проект WebApp</div>
-                <div class="task-reward">🔹 Высокий приоритет</div>
-            </div>
-            <div class="task">
-                <input type="checkbox" class="task-checkbox">
-                <div class="task-label">Подготовить презентацию</div>
-                <div class="task-reward">🔸 Средний приоритет</div>
-            </div>
-            <div class="task completed">
-                <input type="checkbox" class="task-checkbox" checked>
-                <div class="task-label">Составить отчет</div>
-                <div class="task-reward">✅ Выполнено</div>
-            </div>
-        </div>
-    </div>
+    <!-- Нижний навигационный бар -->
+    <nav class="bottom-nav">
+      <a href="#" class="nav-item">
+        <i class="fas fa-gamepad"></i>
+        <span>Игра</span>
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-users"></i>
+        <span>Команды</span>
+      </a>
+      <a href="#" class="nav-item">
+        <i class="fas fa-chart-line"></i>
+        <span>Маркет</span>
+      </a>
+    </nav>
 
-    <!-- Контейнер для Market -->
-    <div class="content market-container" id="market-container">
-        <div class="tasks-card">
-            <h3 class="tasks-title">Маркетплейс</h3>
-            <div class="product">
-                <div class="product-name">Бустер энергии</div>
-                <div class="product-price">50 💎</div>
-                <button class="buy-btn">Купить</button>
-            </div>
-            <div class="product">
-                <div class="product-name">Премиум статус</div>
-                <div class="product-price">200 💎</div>
-                <button class="buy-btn">Купить</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Нижнее меню -->
-    <div class="tab-bar">
-        <div class="tab active" onclick="switchTab('home')">
-            <div class="tab-icon">🏠</div>
-            HOME
-        </div>
-        <div class="tab" onclick="switchTab('tasks')">
-            <div class="tab-icon">✅</div>
-            TASKS
-        </div>
-        <!-- <div class="tab" onclick="switchTab('market')">
-            <div class="tab-icon">🛒</div>
-            MARKET
-        </div> -->
-        <div class="tab" onclick="updateResources(50, 0)">
-            <div class="tab-icon">🛒</div>
-            MARKET
-        </div>
-    </div>
-
-</body>
-
-
-<script>
-       // Инициализация Telegram WebApp
-       let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.setBackgroundColor('#1a1a2e');
-
-        // Отправка обновленных данных боту
-        function updateResources(newEnergy, newCash) {
-            const data = {
-                energy: newEnergy,
-                cash: newCash
-            };
-            
-            Telegram.WebApp.sendData(JSON.stringify(data));
-            Telegram.WebApp.close();
-        }
-
-        // Получение текущего баланса (через бота)
-        async function fetchUserData() {
-            const response = await fetch(`/get_user_data?user_id=${USER_ID}`);
-            const data = await response.json();
-            
-            document.getElementById("cash-display").textContent = data.cash;
-            document.getElementById("energy-display").textContent = data.energy;
-        }
-
-        // Переключение вкладок
-        function switchTab(tabName) {
-            // Скрываем все контейнеры
-            document.getElementById('home-container').style.display = 'none';
-            document.getElementById('tasks-container').style.display = 'none';
-            document.getElementById('market-container').style.display = 'none';
-
-            // Показываем выбранный контейнер
-            document.getElementById(`${tabName}-container`).style.display = 'block';
-
-            // Обновляем активную вкладку
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.currentTarget.classList.add('active');
-        }
-
-
-        // Инициализация при загрузке
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
-            document.getElementById("user_id").textContent = tg.initDataUnsafe.user.id;
-
-
-            // По умолчанию показываем Home
-            switchTab('home');
-        });
-
-        
-
-</script>
-
+    <script src="script.js"></script>
+  </body>
 </html>
