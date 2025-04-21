@@ -24,14 +24,6 @@ function switchTab(tabName) {
 }
 
 
-// Инициализация при загрузке
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
-    document.getElementById("user_id").textContent = tg.initDataUnsafe.user.id;
-
-    // По умолчанию показываем Home
-    switchTab('home');
-});
 
 
 
@@ -47,7 +39,7 @@ async function loadUserData() {
         const data = await response.json();
         
         // Обновляем UI
-        document.getElementById('energy-value').textContent = data.energy;
+        document.getElementById('energy-percent').textContent = data.energy;
         document.getElementById('balance').textContent = data.cash;
     } catch (error) {
         console.error("Ошибка загрузки данных:", error);
@@ -69,3 +61,28 @@ async function updateEnergy(value) {
         console.error("Ошибка обновления:", error);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+    document.getElementById("user_id").textContent = tg.initDataUnsafe.user.id;
+    loadUserData();
+
+    // По умолчанию показываем Home
+    switchTab('home');
+});
