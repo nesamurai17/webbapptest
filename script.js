@@ -15,6 +15,8 @@ function updateUI() {
   energyPercent.textContent = `${currentEnergy}%`;
   document.getElementById("balance").textContent = balance.toLocaleString();
   document.getElementById("usdt-balance").textContent = usdtBalance.toFixed(2);
+  document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+  document.getElementById("user-id").textContent = tg.initDataUnsafe.user.id;
 }
 
 function showEnergyModal(requiredEnergy) {
@@ -61,9 +63,7 @@ function switchTab(tabName) {
 // document.addEventListener("DOMContentLoaded", updateUI);
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-  
-  document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
-  document.getElementById("user-id").textContent = tg.initDataUnsafe.user.id;
+  updateUI();
 
   // По умолчанию показываем Home
   switchTab('home');
