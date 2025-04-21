@@ -1,25 +1,34 @@
-// ====================== ИНИЦИАЛИЗАЦИЯ ======================
+// Инициализация Telegram WebApp
 const tg = window.Telegram.WebApp;
-tg.expand(); // Раскрываем WebApp на весь экран
-tg.enableClosingConfirmation(); // Подтверждение закрытия
+tg.expand();
+tg.enableClosingConfirmation();
 
-// Сущности приложения
+// Конфигурация Supabase
+const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// Состояние приложения
 let currentEnergy = 0;
 let balance = 0;
-let supabase;
+let userId = null;
 
-// ====================== ОСНОВНЫЕ ФУНКЦИИ ======================
-// Инициализация Supabase (асинхронная)
-async function initSupabase() {
-  const { createClient } = await import('https://unpkg.com/@supabase/supabase-js@2');
-  return createClient(
-    'https://koqnqotxchpimovxcnva.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc'
-  );
-}
+// DOM элементы
+const elements = {
+  username: document.getElementById("username"),
+  userId: document.getElementById("user-id"),
+  energyBar: document.getElementById("energy-bar"),
+  energyPercent: document.getElementById("energy-percent"),
+  balance: document.getElementById("balance"),
+  energyModal: document.getElementById("energyModal"),
+  requiredEnergyText: document.getElementById("requiredEnergyText"),
+  homeContainer: document.getElementById("home-container"),
+  tasksContainer: document.getElementById("tasks-container"),
+  marketContainer: document.getElementById("market-container")
+};
 
-// Загрузка данных пользователя
-async function fetchUserData(userId) {
+// Основные функции
+async function fetchUserData() {
   try {
     const { data, error } = await supabase
       .from('users')
@@ -28,29 +37,27 @@ async function fetchUserData(userId) {
       .single();
 
     if (error) throw error;
-    return data || { energy: 100, cash: 1000 }; // Дефолтные значения
+    return data;
   } catch (error) {
-    console.error("Ошибка загрузки:", error);
+    console.error("Ошибка загрузки данных:", error);
     tg.showAlert("Ошибка загрузки данных");
-    return { energy: 100, cash: 1000 };
+    return null;
   }
 }
 
-// Обновление интерфейса
 function updateUI() {
-  document.getElementById("energy-bar").style.width = `${currentEnergy}%`;
-  document.getElementById("energy-percent").textContent = `${currentEnergy}%`;
-  document.getElementById("balance").textContent = balance.toLocaleString();
+  elements.energyBar.style.width = `${currentEnergy}%`;
+  elements.energyPercent.textContent = `${currentEnergy}%`;
+  elements.balance.textContent = balance.toLocaleString();
 }
 
-// Модальное окно энергии
 function showEnergyModal(requiredEnergy) {
   tg.HapticFeedback.impactOccurred('light');
   
   if (currentEnergy < requiredEnergy) {
-    document.getElementById("requiredEnergyText").textContent = 
+    elements.requiredEnergyText.textContent = 
       `Требуется ${requiredEnergy}% энергии. Пополнить сейчас?`;
-    document.getElementById("energyModal").style.display = "flex";
+    elements.energyModal.style.display = "flex";
   } else {
     startTask(requiredEnergy);
   }
@@ -63,67 +70,59 @@ function closeModal(modalId) {
 function startTask(energyCost) {
   currentEnergy -= energyCost;
   updateUI();
-  tg.showPopup({ title: "Задание начато!", message: `Спишется ${energyCost}% энергии` });
+  tg.showPopup({ 
+    title: "Задание начато!", 
+    message: `Списано ${energyCost}% энергии` 
+  });
 }
 
-// Переключение вкладок
 function switchTab(tabName) {
-  ['home', 'tasks', 'market'].forEach(tab => {
-    document.getElementById(`${tab}-container`).style.display = 'none';
-  });
+  elements.homeContainer.style.display = 'none';
+  elements.tasksContainer.style.display = 'none';
+  elements.marketContainer.style.display = 'none';
+  
   document.getElementById(`${tabName}-container`).style.display = 'block';
 }
 
-// ====================== ОБРАБОТЧИКИ СОБЫТИЙ ======================
-function setupEventListeners() {
-  // Кнопки заданий
-  document.querySelectorAll('.btn[onclick*="showEnergyModal"]').forEach(btn => {
-    const energyCost = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
-    btn.onclick = () => showEnergyModal(energyCost);
-  });
-
-  // Нижнее меню
-  document.querySelectorAll('.nav-item').forEach(item => {
-    const tab = item.getAttribute('onclick').match(/'(\w+)'/)[1];
-    item.onclick = () => switchTab(tab);
-  });
-
-  // Модальные окна
-  document.querySelectorAll('[onclick*="closeModal"]').forEach(btn => {
-    const modalId = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
-    btn.onclick = () => closeModal(modalId);
-  });
-}
-
-// ====================== ЗАПУСК ПРИЛОЖЕНИЯ ======================
+// Инициализация приложения
 async function initApp() {
   try {
-    // 1. Инициализируем Supabase
-    supabase = await initSupabase();
-    
-    // 2. Получаем данные пользователя
-    const userId = tg.initDataUnsafe?.user?.id;
-    if (!userId) throw new Error("Не получен user_id");
-    
-    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
-    document.getElementById("user-id").textContent = `ID: ${userId}`;
+    // Получаем данные пользователя из Telegram
+    userId = tg.initDataUnsafe?.user?.id;
+    if (!userId) throw new Error("Не удалось получить ID пользователя");
 
-    // 3. Загружаем данные из БД
-    const userData = await fetchUserData(userId);
-    currentEnergy = userData.energy;
-    balance = userData.cash;
-    updateUI();
+    // Устанавливаем данные пользователя
+    elements.username.textContent = tg.initDataUnsafe.user.first_name || "Гость";
+    elements.userId.textContent = `ID: ${userId}`;
 
-    // 4. Активируем кнопки
-    setupEventListeners();
+    // Загружаем данные из Supabase
+    const userData = await fetchUserData();
+    if (userData) {
+      currentEnergy = userData.energy;
+      balance = userData.cash;
+      updateUI();
+    }
 
-    // 5. Режим отладки
-    console.log("Приложение инициализировано!");
-    window.supabase = supabase; // Доступ в консоли
+    // Назначаем обработчики событий
+    document.querySelectorAll('.btn[onclick*="showEnergyModal"]').forEach(btn => {
+      const energyCost = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
+      btn.onclick = () => showEnergyModal(energyCost);
+    });
 
+    document.querySelectorAll('.nav-item').forEach(item => {
+      const tab = item.getAttribute('onclick').match(/'(\w+)'/)[1];
+      item.onclick = () => switchTab(tab);
+    });
+
+    document.querySelectorAll('[onclick*="closeModal"]').forEach(btn => {
+      const modalId = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
+      btn.onclick = () => closeModal(modalId);
+    });
+
+    console.log("Приложение успешно инициализировано");
   } catch (error) {
-    console.error("Fatal error:", error);
-    tg.showAlert(`Ошибка инициализации: ${error.message}`);
+    console.error("Ошибка инициализации:", error);
+    tg.showAlert(`Ошибка: ${error.message}`);
   }
 }
 
