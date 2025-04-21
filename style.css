@@ -34,6 +34,20 @@ body {
   padding: 1rem;
 }
 
+#tasks-container {
+  display: none;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+#market-container {
+  display: none;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
 /* Нижняя навигация */
 .bottom-nav {
   position: fixed;
@@ -114,6 +128,7 @@ body {
 .task-grid {
   display: grid;
   gap: 1.5rem;
+  padding: 1rem;
 }
 
 .task-card {
