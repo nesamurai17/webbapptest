@@ -1,176 +1,246 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GAME</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link rel="stylesheet" href="style.css" />
-    
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  </head>
-  <body>
-
-    <!-- Контейнер для Home -->
-
-    <div class="container" id="home-container">
-      <div class="header">
-        <div class="balance-section">
-          <div class="user-name">
-            <h3 id="username">взять из тг</h3>
-            <p id="user-id">взять из тг</p>
-          </div>
-          <div class="balance-card">
-            <h3><i class="fas fa-coins"></i> АВВА Коины</h3>
-            <p id="balance">1,000,000 из бд</p>
-          </div>
-        </div>
-
-        <div class="energy-wrapper">
-          <div class="energy-progress" id="energy-bar">
-            <div class="energy-label">
-              <i class="fas fa-bolt"></i>
-              <span id="energy-percent">3000% из бд</span>
-            </div>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AVVA Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <!-- Home Page -->
+  <div id="home-page" class="page active">
+    <div class="header">
+      <img id="user-avatar" src="https://via.placeholder.com/60" class="user-avatar" alt="User Avatar">
+      <div class="user-info">
+        <div class="user-name" id="username">Загрузка...</div>
+        <div class="user-id" id="user-id">ID: ---</div>
+        <div class="balance-card">
+          <i class="fas fa-coins"></i>
+          <span id="balance">0</span> AVVA
         </div>
       </div>
+    </div>
 
-      <div class="task-grid">
-        <div class="task-card">
-          <div class="task-header">
-            <h3>Социальный буст</h3>
-          </div>
-          <div class="reward-badge">
-            <i class="fas fa-gem"></i>
-            <span>Награда: 7 NFT (28 USDT) из бд</span>
-          </div>
-          <p class="task-description">Выполните 5 социальных заданий из бд</p>
-          <button class="btn" onclick="showEnergyModal(10)">
-            <i class="fas fa-play"></i>
-            Начать задание
+    <div class="energy-container">
+      <div class="energy-wrapper">
+        <div class="energy-progress" id="energy-bar">
+          <span id="energy-percent">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-share-alt"></i>
+        Социальный буст
+      </div>
+      <div class="badge badge-primary">
+        <i class="fas fa-gem"></i>
+        Награда: 7 NFT (28 USDT)
+      </div>
+      <p class="card-description">
+        Выполните 5 социальных заданий и получите эксклюзивные NFT
+      </p>
+      <button class="btn btn-secondary" onclick="showTaskDetails('social-boost')">
+        <i class="fas fa-info-circle"></i> Подробнее
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-tasks"></i>
+        Ежедневные задания
+      </div>
+      <div class="badge badge-primary">
+        <i class="fas fa-gem"></i>
+        Награда: 3 NFT (12 USDT)
+      </div>
+      <p class="card-description">
+        Выполняйте простые задания каждый день
+      </p>
+      <button class="btn btn-secondary" onclick="showTaskDetails('daily-tasks')">
+        <i class="fas fa-info-circle"></i> Подробнее
+      </button>
+    </div>
+  </div>
+
+  <!-- Teams Page -->
+  <div id="teams-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">Мои команды</div>
+        <div class="user-id">Присоединяйтесь к сообществу</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-crown"></i>
+        Премиум команда
+      </div>
+      <div class="badge badge-premium">
+        PRO
+      </div>
+      <p class="card-description">
+        Получите эксклюзивные бонусы и привилегии
+      </p>
+      <button class="btn btn-primary">
+        <i class="fas fa-plus"></i> Присоединиться
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-users"></i>
+        Новички
+      </div>
+      <div class="badge badge-primary">
+        Старт
+      </div>
+      <p class="card-description">
+        Идеально для новых участников
+      </p>
+      <button class="btn btn-primary">
+        <i class="fas fa-plus"></i> Присоединиться
+      </button>
+    </div>
+  </div>
+
+  <!-- Market Page -->
+  <div id="market-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">NFT Маркет</div>
+        <div class="user-id">Покупайте и продавайте</div>
+      </div>
+    </div>
+
+    <div class="nft-grid">
+      <div class="nft-card">
+        <div class="nft-image">
+          <span class="nft-price"><i class="fas fa-coins"></i> 150</span>
+        </div>
+        <div class="nft-info">
+          <h3 class="nft-title">Редкий NFT</h3>
+          <p class="nft-description">Эксклюзивный дизайн для коллекционеров</p>
+          <button class="btn btn-primary">
+            <i class="fas fa-shopping-cart"></i> Купить
           </button>
         </div>
       </div>
 
-      <div class="task-grid">
-        <div class="task-card">
-          <div class="task-header">
-            <h3>Социальный буст</h3>
-          </div>
-          <div class="reward-badge">
-            <i class="fas fa-gem"></i>
-            <span>Награда: 7 NFT (28 USDT) из бд</span>
-          </div>
-          <p class="task-description">Выполните 5 социальных заданий из бд</p>
-          <button class="btn" onclick="showEnergyModal(10)">
-            <i class="fas fa-play"></i>
-            Начать задание
+      <div class="nft-card">
+        <div class="nft-image">
+          <span class="nft-price"><i class="fas fa-coins"></i> 75</span>
+        </div>
+        <div class="nft-info">
+          <h3 class="nft-title">Обычный NFT</h3>
+          <p class="nft-description">Доступный каждому</p>
+          <button class="btn btn-primary">
+            <i class="fas fa-shopping-cart"></i> Купить
           </button>
         </div>
       </div>
+    </div>
+  </div>
 
-        
-      
-      <div id="energyModal" class="modal">
-        <div class="modal-content">
-          <h3 class="modal-title">
-            <i class="fas fa-charging-station"></i>
-            Повышение энергии
-          </h3>
-          <p id="requiredEnergyText" class="modal-text"></p>
-          <div class="modal-buttons">
-            <button class="btn" onclick="window.Telegram.WebApp.close()">
-              <i class="fas fa-coins"></i>
-              Перейти в бота
-            </button>
-            <button class="btn btn-cancel" onclick="closeModal('energyModal')">
-              Отмена
-            </button>
+  <!-- Task Details Page -->
+  <div id="task-details-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">Детали задания</div>
+        <div class="user-id">Выполните все шаги</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-share-alt"></i>
+        Социальный буст
+      </div>
+      <div class="badge badge-primary">
+        <i class="fas fa-gem"></i>
+        Награда: 7 NFT (28 USDT)
+      </div>
+
+      <div class="task-steps">
+        <div class="task-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <div class="step-title">Подпишитесь на наш канал</div>
+            <div class="step-description">Подпишитесь на официальный Telegram канал</div>
+          </div>
+        </div>
+        <div class="task-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <div class="step-title">Сделайте репост</div>
+            <div class="step-description">Поделитесь последним постом в своем канале</div>
+          </div>
+        </div>
+        <div class="task-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <div class="step-title">Пригласите друзей</div>
+            <div class="step-description">Пригласите 3 друзей в бота</div>
           </div>
         </div>
       </div>
-    </div>
 
-
-    <!-- Контейнер для Teams -->
-    <div class="container" id="tasks-container">
-      <div class="tasks-card">
-          <h3 class="tasks-title">Мои задачи</h3>
-          <div class="task">
-              <input type="checkbox" class="task-checkbox">
-              <div class="task-label">Завершить проект WebApp</div>
-              <div class="task-reward">🔹 Высокий приоритет</div>
-          </div>
-          <div class="task">
-              <input type="checkbox" class="task-checkbox">
-              <div class="task-label">Подготовить презентацию</div>
-              <div class="task-reward">🔸 Средний приоритет</div>
-          </div>
-          <div class="task completed">
-              <input type="checkbox" class="task-checkbox" checked>
-              <div class="task-label">Составить отчет</div>
-              <div class="task-reward">✅ Выполнено</div>
-          </div>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="switchTab('home')">
+          <i class="fas fa-arrow-left"></i> Назад
+        </button>
+        <button class="btn btn-primary" onclick="showEnergyModal(15)">
+          <i class="fas fa-play"></i> Начать
+        </button>
       </div>
     </div>
+  </div>
 
-
-
-    <div class="container" id="market-container">
-      <div class="tasks-card">
-          <h3 class="tasks-title">Мои какашки</h3>
-          <div class="task">
-              <input type="checkbox" class="task-checkbox">
-              <div class="task-label">Завершить проект WebApp</div>
-              <div class="task-reward">🔹 Высокий приоритет</div>
-          </div>
-          <div class="task">
-              <input type="checkbox" class="task-checkbox">
-              <div class="task-label">Подготовить презентацию</div>
-              <div class="task-reward">🔸 Средний приоритет</div>
-          </div>
-          <div class="task completed">
-              <input type="checkbox" class="task-checkbox" checked>
-              <div class="task-label">Составить отчет</div>
-              <div class="task-reward">✅ Выполнено</div>
-          </div>
+  <!-- Energy Modal -->
+  <div id="energyModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">
+        <i class="fas fa-bolt"></i>
+        Недостаточно энергии
+      </h3>
+      <p id="requiredEnergyText" class="modal-text"></p>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="closeModal('energyModal')">
+          Отмена
+        </button>
+        <button class="btn btn-primary" onclick="window.Telegram.WebApp.close()">
+          <i class="fas fa-coins"></i> Пополнить
+        </button>
       </div>
     </div>
+  </div>
 
-    
-    <!-- Нижний навигационный бар -->
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav-container">
     <div class="bottom-nav">
-      <div class="nav-item" onclick="switchTab('home')">
-        <a class="nav-item">
-          <i class="fas fa-gamepad"></i>
-          <span>Игра</span>
-        </a>
+      <div class="nav-item active" onclick="switchTab('home')">
+        <i class="fas fa-gamepad"></i>
+        <span>Игра</span>
       </div>
-      <div class="nav-item" onclick="switchTab('tasks')">
-        <a class="nav-item">
-          <i class="fas fa-users"></i>
-          <span>Команды</span>
-        </a>
+      <div class="nav-item" onclick="switchTab('teams')">
+        <i class="fas fa-users"></i>
+        <span>Команды</span>
       </div>
       <div class="nav-item" onclick="switchTab('market')">
-        <a class="nav-item">
-          <i class="fas fa-chart-line"></i>
-          <span>Маркет</span>
-        </a>
+        <i class="fas fa-shopping-bag"></i>
+        <span>Маркет</span>
       </div>
     </div>
+  </div>
 
-    <script src="script.js"></script>
-  </body>
+  <script src="script.js"></script>
+</body>
 </html>

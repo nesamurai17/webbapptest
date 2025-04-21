@@ -1,28 +1,35 @@
-// 1. Инициализация Telegram WebApp
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
-// 2. Инициализация Supabase
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-// 3. Состояние приложения
 const appState = {
   energy: 0,
   balance: 0,
-  userId: tg.initDataUnsafe?.user?.id || null
+  userId: tg.initDataUnsafe?.user?.id || null,
+  currentTask: null
 };
 
-// 4. Функции работы с UI
 function updateUI() {
   document.getElementById("energy-bar").style.width = `${appState.energy}%`;
   document.getElementById("energy-percent").textContent = `${appState.energy}%`;
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
+  
+  // Update user info if available
+  if (tg.initDataUnsafe?.user) {
+    const user = tg.initDataUnsafe.user;
+    document.getElementById("username").textContent = user.first_name;
+    document.getElementById("user-id").textContent = `ID: ${user.id}`;
+    
+    if (user.photo_url) {
+      document.getElementById("user-avatar").src = user.photo_url;
+    }
+  }
 }
 
-// 5. Обновление энергии в БД
 async function updateEnergyInDB(newEnergy) {
   try {
     const { error } = await supabase
@@ -39,15 +46,11 @@ async function updateEnergyInDB(newEnergy) {
   }
 }
 
-// 6. Функции для кнопок
 async function startTask(energyCost) {
   const newEnergy = appState.energy - energyCost;
-  
-  // Обновляем локальное состояние
   appState.energy = newEnergy;
   updateUI();
   
-  // Отправляем в БД
   const success = await updateEnergyInDB(newEnergy);
   
   if (success) {
@@ -56,10 +59,14 @@ async function startTask(energyCost) {
       message: `Списано ${energyCost}% энергии` 
     });
   } else {
-    // Откатываем изменения если не удалось сохранить в БД
     appState.energy += energyCost;
     updateUI();
   }
+}
+
+function showTaskDetails(task) {
+  appState.currentTask = task;
+  switchTab('task-details');
 }
 
 function showEnergyModal(requiredEnergy) {
@@ -68,24 +75,35 @@ function showEnergyModal(requiredEnergy) {
   if (appState.energy < requiredEnergy) {
     document.getElementById("requiredEnergyText").textContent = 
       `Требуется ${requiredEnergy}% энергии. Пополнить сейчас?`;
-    document.getElementById("energyModal").style.display = "flex";
+    document.getElementById("energyModal").classList.add('active');
   } else {
     startTask(requiredEnergy);
   }
 }
 
 function closeModal(modalId) {
-  document.getElementById(modalId).style.display = "none";
+  document.getElementById(modalId).classList.remove('active');
 }
 
 function switchTab(tabName) {
-  ['home', 'tasks', 'market'].forEach(tab => {
-    document.getElementById(`${tab}-container`).style.display = 'none';
+  // Update navigation
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active');
   });
-  document.getElementById(`${tabName}-container`).style.display = 'block';
+  
+  if (tabName !== 'task-details') {
+    document.querySelector(`.nav-item[onclick="switchTab('${tabName}')"]`).classList.add('active');
+  }
+  
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+  });
+  
+  // Show selected page
+  document.getElementById(`${tabName}-page`).classList.add('active');
 }
 
-// 7. Загрузка данных пользователя
 async function loadUserData() {
   if (!appState.userId) return;
   
@@ -107,23 +125,17 @@ async function loadUserData() {
   }
 }
 
-// 8. Инициализация приложения
 function initApp() {
-  // Установка данных пользователя
-  if (tg.initDataUnsafe?.user) {
-    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
-    document.getElementById("user-id").textContent = `ID: ${appState.userId}`;
-  }
-
-  // Загрузка данных
+  updateUI();
   loadUserData();
+  switchTab('home');
 
-  // Восстановление стандартных обработчиков
+  // Set up global functions
   window.showEnergyModal = showEnergyModal;
   window.closeModal = closeModal;
   window.switchTab = switchTab;
   window.startTask = startTask;
+  window.showTaskDetails = showTaskDetails;
 }
 
-// Запуск приложения
 document.addEventListener('DOMContentLoaded', initApp);
