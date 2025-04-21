@@ -22,7 +22,46 @@ function updateUI() {
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
 }
 
-// 5. Функции для кнопок (без изменения HTML)
+// 5. Обновление энергии в БД
+async function updateEnergyInDB(newEnergy) {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ energy: newEnergy })
+      .eq('user_id', appState.userId);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Ошибка обновления энергии:", error);
+    tg.showAlert("Ошибка сохранения энергии");
+    return false;
+  }
+}
+
+// 6. Функции для кнопок
+async function startTask(energyCost) {
+  const newEnergy = appState.energy - energyCost;
+  
+  // Обновляем локальное состояние
+  appState.energy = newEnergy;
+  updateUI();
+  
+  // Отправляем в БД
+  const success = await updateEnergyInDB(newEnergy);
+  
+  if (success) {
+    tg.showPopup({ 
+      title: "Задание начато!", 
+      message: `Списано ${energyCost}% энергии` 
+    });
+  } else {
+    // Откатываем изменения если не удалось сохранить в БД
+    appState.energy += energyCost;
+    updateUI();
+  }
+}
+
 function showEnergyModal(requiredEnergy) {
   tg.HapticFeedback.impactOccurred('light');
   
@@ -39,15 +78,6 @@ function closeModal(modalId) {
   document.getElementById(modalId).style.display = "none";
 }
 
-function startTask(energyCost) {
-  appState.energy -= energyCost;
-  updateUI();
-  tg.showPopup({ 
-    title: "Задание начато!", 
-    message: `Списано ${energyCost}% энергии` 
-  });
-}
-
 function switchTab(tabName) {
   ['home', 'tasks', 'market'].forEach(tab => {
     document.getElementById(`${tab}-container`).style.display = 'none';
@@ -55,7 +85,7 @@ function switchTab(tabName) {
   document.getElementById(`${tabName}-container`).style.display = 'block';
 }
 
-// 6. Загрузка данных пользователя
+// 7. Загрузка данных пользователя
 async function loadUserData() {
   if (!appState.userId) return;
   
@@ -77,7 +107,7 @@ async function loadUserData() {
   }
 }
 
-// 7. Инициализация приложения
+// 8. Инициализация приложения
 function initApp() {
   // Установка данных пользователя
   if (tg.initDataUnsafe?.user) {
@@ -92,6 +122,7 @@ function initApp() {
   window.showEnergyModal = showEnergyModal;
   window.closeModal = closeModal;
   window.switchTab = switchTab;
+  window.startTask = startTask;
 }
 
 // Запуск приложения
