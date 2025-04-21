@@ -1,63 +1,35 @@
-// Инициализация Telegram WebApp
+// 1. Инициализация Telegram WebApp
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
-// Конфигурация Supabase
+// 2. Инициализация Supabase
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-// Состояние приложения
-let currentEnergy = 0;
-let balance = 0;
-let userId = null;
-
-// DOM элементы
-const elements = {
-  username: document.getElementById("username"),
-  userId: document.getElementById("user-id"),
-  energyBar: document.getElementById("energy-bar"),
-  energyPercent: document.getElementById("energy-percent"),
-  balance: document.getElementById("balance"),
-  energyModal: document.getElementById("energyModal"),
-  requiredEnergyText: document.getElementById("requiredEnergyText"),
-  homeContainer: document.getElementById("home-container"),
-  tasksContainer: document.getElementById("tasks-container"),
-  marketContainer: document.getElementById("market-container")
+// 3. Состояние приложения
+const appState = {
+  energy: 0,
+  balance: 0,
+  userId: tg.initDataUnsafe?.user?.id || null
 };
 
-// Основные функции
-async function fetchUserData() {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('energy, cash')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error("Ошибка загрузки данных:", error);
-    tg.showAlert("Ошибка загрузки данных");
-    return null;
-  }
-}
-
+// 4. Функции работы с UI
 function updateUI() {
-  elements.energyBar.style.width = `${currentEnergy}%`;
-  elements.energyPercent.textContent = `${currentEnergy}%`;
-  elements.balance.textContent = balance.toLocaleString();
+  document.getElementById("energy-bar").style.width = `${appState.energy}%`;
+  document.getElementById("energy-percent").textContent = `${appState.energy}%`;
+  document.getElementById("balance").textContent = appState.balance.toLocaleString();
 }
 
+// 5. Функции для кнопок (без изменения HTML)
 function showEnergyModal(requiredEnergy) {
   tg.HapticFeedback.impactOccurred('light');
   
-  if (currentEnergy < requiredEnergy) {
-    elements.requiredEnergyText.textContent = 
+  if (appState.energy < requiredEnergy) {
+    document.getElementById("requiredEnergyText").textContent = 
       `Требуется ${requiredEnergy}% энергии. Пополнить сейчас?`;
-    elements.energyModal.style.display = "flex";
+    document.getElementById("energyModal").style.display = "flex";
   } else {
     startTask(requiredEnergy);
   }
@@ -68,7 +40,7 @@ function closeModal(modalId) {
 }
 
 function startTask(energyCost) {
-  currentEnergy -= energyCost;
+  appState.energy -= energyCost;
   updateUI();
   tg.showPopup({ 
     title: "Задание начато!", 
@@ -77,54 +49,50 @@ function startTask(energyCost) {
 }
 
 function switchTab(tabName) {
-  elements.homeContainer.style.display = 'none';
-  elements.tasksContainer.style.display = 'none';
-  elements.marketContainer.style.display = 'none';
-  
+  ['home', 'tasks', 'market'].forEach(tab => {
+    document.getElementById(`${tab}-container`).style.display = 'none';
+  });
   document.getElementById(`${tabName}-container`).style.display = 'block';
 }
 
-// Инициализация приложения
-async function initApp() {
+// 6. Загрузка данных пользователя
+async function loadUserData() {
+  if (!appState.userId) return;
+  
   try {
-    // Получаем данные пользователя из Telegram
-    userId = tg.initDataUnsafe?.user?.id;
-    if (!userId) throw new Error("Не удалось получить ID пользователя");
+    const { data } = await supabase
+      .from('users')
+      .select('energy, cash')
+      .eq('user_id', appState.userId)
+      .single();
 
-    // Устанавливаем данные пользователя
-    elements.username.textContent = tg.initDataUnsafe.user.first_name || "Гость";
-    elements.userId.textContent = `ID: ${userId}`;
-
-    // Загружаем данные из Supabase
-    const userData = await fetchUserData();
-    if (userData) {
-      currentEnergy = userData.energy;
-      balance = userData.cash;
+    if (data) {
+      appState.energy = data.energy;
+      appState.balance = data.cash;
       updateUI();
     }
-
-    // Назначаем обработчики событий
-    document.querySelectorAll('.btn[onclick*="showEnergyModal"]').forEach(btn => {
-      const energyCost = parseInt(btn.getAttribute('onclick').match(/\d+/)[0]);
-      btn.onclick = () => showEnergyModal(energyCost);
-    });
-
-    document.querySelectorAll('.nav-item').forEach(item => {
-      const tab = item.getAttribute('onclick').match(/'(\w+)'/)[1];
-      item.onclick = () => switchTab(tab);
-    });
-
-    document.querySelectorAll('[onclick*="closeModal"]').forEach(btn => {
-      const modalId = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
-      btn.onclick = () => closeModal(modalId);
-    });
-
-    console.log("Приложение успешно инициализировано");
   } catch (error) {
-    console.error("Ошибка инициализации:", error);
-    tg.showAlert(`Ошибка: ${error.message}`);
+    console.error("Ошибка загрузки данных:", error);
+    tg.showAlert("Ошибка загрузки данных");
   }
 }
 
-// Запускаем приложение после загрузки DOM
+// 7. Инициализация приложения
+function initApp() {
+  // Установка данных пользователя
+  if (tg.initDataUnsafe?.user) {
+    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+    document.getElementById("user-id").textContent = `ID: ${appState.userId}`;
+  }
+
+  // Загрузка данных
+  loadUserData();
+
+  // Восстановление стандартных обработчиков
+  window.showEnergyModal = showEnergyModal;
+  window.closeModal = closeModal;
+  window.switchTab = switchTab;
+}
+
+// Запуск приложения
 document.addEventListener('DOMContentLoaded', initApp);
