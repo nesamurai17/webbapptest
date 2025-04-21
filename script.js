@@ -36,36 +36,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-// const API_URL = "https://3aa1-217-23-3-91.ngrok-free.app";
+const API_URL = "https://3aa1-217-23-3-91.ngrok-free.app";
 
-// async function loadUserData() {
-//     const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-//     if (!tgUser) return;
+async function loadUserData() {
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    if (!tgUser) return;
     
-//     try {
-//         const response = await fetch(`${API_URL}/users/${tgUser.id}`);
-//         const data = await response.json();
+    try {
+        const response = await fetch(`${API_URL}/users/${tgUser.id}`);
+        const data = await response.json();
         
-//         // Обновляем UI
-//         document.getElementById('energy-value').textContent = data.energy;
-//         document.getElementById('balance').textContent = data.cash;
-//     } catch (error) {
-//         console.error("Ошибка загрузки данных:", error);
-//     }
-// }
+        // Обновляем UI
+        document.getElementById('energy-value').textContent = data.energy;
+        document.getElementById('balance').textContent = data.cash;
+    } catch (error) {
+        console.error("Ошибка загрузки данных:", error);
+    }
+}
 
-// async function updateEnergy(value) {
-//     const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-//     if (!tgUser) return;
+async function updateEnergy(value) {
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    if (!tgUser) return;
     
-//     try {
-//         await fetch(`${API_URL}/users/${tgUser.id}/update`, {
-//             method: "POST",
-//             headers: { "Content-Type": "application/json" },
-//             body: JSON.stringify({ energy: value })
-//         });
-//         loadUserData(); // Перезагружаем данные
-//     } catch (error) {
-//         console.error("Ошибка обновления:", error);
-//     }
-// }
+    try {
+        await fetch(`${API_URL}/users/${tgUser.id}/update`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ energy: value })
+        });
+        loadUserData(); // Перезагружаем данные
+    } catch (error) {
+        console.error("Ошибка обновления:", error);
+    }
+}
