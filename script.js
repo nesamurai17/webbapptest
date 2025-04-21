@@ -63,7 +63,7 @@ function switchTab(tabName) {
 // document.addEventListener("DOMContentLoaded", updateUI);
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-  updateUI()
+  updateUI();
   // По умолчанию показываем Home
   switchTab('home');
 });
