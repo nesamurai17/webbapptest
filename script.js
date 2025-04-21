@@ -4,17 +4,7 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.setBackgroundColor('#1a1a2e')
 
-// Заполнение данных пользователя
-function fillUserData() {
-    const user = tg.initDataUnsafe.user;
-    if (user) {
-        const username = `${user.first_name} ${user.last_name || ''}`.trim();
-        document.getElementById('username').textContent = username;
-        
-        // Помечаем, что регистрация выполнена
-        localStorage.setItem('isRegistered', 'true');
-    }
-}
+
 
 // Переключение вкладок
 function switchTab(tabName) {
@@ -36,6 +26,8 @@ function switchTab(tabName) {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById("username").textContent = tg.initDataUnsafe.user.first_name;
+    document.getElementById("user_id").textContent = tg.initDataUnsafe.user.id;
 
     // По умолчанию показываем Home
     switchTab('home');
