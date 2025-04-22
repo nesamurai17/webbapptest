@@ -71,46 +71,15 @@
   </div>
 
   <!-- Teams Page -->
-  <div id="teams-page" class="page">
-    <div class="header">
-      <div class="user-info">
-        <div class="user-name">Мои команды</div>
-        <div class="user-id">Присоединяйтесь к сообществу</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <i class="fas fa-crown"></i>
-        Премиум команда
-      </div>
-      <div class="badge badge-premium">
-        PRO
-      </div>
-      <p class="card-description">
-        Получите эксклюзивные бонусы и привилегии
-      </p>
-      <button class="btn btn-primary">
-        <i class="fas fa-plus"></i> Присоединиться
-      </button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <i class="fas fa-users"></i>
-        Новички
-      </div>
-      <div class="badge badge-primary">
-        Старт
-      </div>
-      <p class="card-description">
-        Идеально для новых участников
-      </p>
-      <button class="btn btn-primary">
-        <i class="fas fa-plus"></i> Присоединиться
-      </button>
+<div id="teams-page" class="page">
+  <div class="header">
+    <div class="user-info">
+      <div class="user-name">Мои команды</div>
+      <div class="user-id">Присоединяйтесь к сообществу</div>
     </div>
   </div>
+  <!-- Карточки команд будут добавляться здесь динамически -->
+</div>
 
   <!-- Market Page -->
   <div id="market-page" class="page">
@@ -149,6 +118,97 @@
       </div>
     </div>
   </div>
+
+
+  <!-- Tasks Page -->
+<div id="tasks-page" class="page">
+  <div class="header">
+    <div class="user-info">
+      <div class="user-name">Задания</div>
+      <div class="user-id">Зарабатывайте очки</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-star"></i>
+      Ежедневные задания
+    </div>
+    <div class="badge badge-primary">
+      <i class="fas fa-gem"></i>
+      Награда: 10 очков
+    </div>
+    <p class="card-description">
+      Выполняйте ежедневные задания для получения бонусов
+    </p>
+    <button class="btn btn-primary" onclick="showTaskDetails('daily')">
+      <i class="fas fa-play"></i> Начать
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-share-alt"></i>
+      Социальные задания
+    </div>
+    <div class="badge badge-primary">
+      <i class="fas fa-gem"></i>
+      Награда: 25 очков
+    </div>
+    <p class="card-description">
+      Приглашайте друзей и получайте бонусы
+    </p>
+    <button class="btn btn-primary" onclick="showTaskDetails('social')">
+      <i class="fas fa-play"></i> Начать
+    </button>
+  </div>
+</div>
+
+<!-- Rating Page -->
+<div id="rating-page" class="page">
+  <div class="header">
+    <div class="user-info">
+      <div class="user-name">Рейтинг игроков</div>
+      <div class="user-id">Топ 10 по разным категориям</div>
+    </div>
+  </div>
+
+  <div class="rating-columns">
+    <!-- Колонка по балансу -->
+    <div class="rating-column">
+      <div class="column-header">
+        <i class="fas fa-coins"></i>
+        <h3>По балансу</h3>
+      </div>
+      <div id="cash-rating" class="rating-list">
+        <!-- Список будет заполнен JS -->
+        <div class="loading">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Колонка по заданиям -->
+    <div class="rating-column">
+      <div class="column-header">
+        <i class="fas fa-tasks"></i>
+        <h3>По заданиям</h3>
+      </div>
+      <div id="tasks-rating" class="rating-list">
+        <div class="loading">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Колонка по инвайтам -->
+    <div class="rating-column">
+      <div class="column-header">
+        <i class="fas fa-user-plus"></i>
+        <h3>По инвайтам</h3>
+      </div>
+      <div id="invites-rating" class="rating-list">
+        <div class="loading">Загрузка...</div>
+      </div>
+    </div>
+  </div>
+</div>
 
   <!-- Task Details Page -->
   <div id="task-details-page" class="page">
@@ -224,22 +284,30 @@
   </div>
 
   <!-- Bottom Navigation -->
-  <div class="bottom-nav-container">
-    <div class="bottom-nav">
-      <div class="nav-item active" onclick="switchTab('home')">
-        <i class="fas fa-gamepad"></i>
-        <span>Игра</span>
-      </div>
-      <div class="nav-item" onclick="switchTab('teams')">
-        <i class="fas fa-users"></i>
-        <span>Команды</span>
-      </div>
-      <div class="nav-item" onclick="switchTab('market')">
-        <i class="fas fa-shopping-bag"></i>
-        <span>Маркет</span>
-      </div>
+<div class="bottom-nav-container">
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home')">
+      <i class="fas fa-gamepad"></i>
+      <span>Игра</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('tasks')">
+      <i class="fas fa-tasks"></i>
+      <span>Задания</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('teams')">
+      <i class="fas fa-users"></i>
+      <span>Команды</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('rating')">
+      <i class="fas fa-trophy"></i>
+      <span>Рейтинг</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('market')">
+      <i class="fas fa-shopping-bag"></i>
+      <span>Маркет</span>
     </div>
   </div>
+</div>
 
   <script src="script.js"></script>
 </body>

@@ -423,3 +423,85 @@ body {
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
 }
+
+
+
+
+/* ВСЕ НОВОЕ ЧТО ДОБАВЛЯЮ */
+/* Стили для страницы рейтинга */
+.rating-columns {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0 1rem 1rem;
+}
+
+.rating-column {
+  min-width: 120px;
+  background: var(--surface);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: var(--card-shadow);
+}
+
+.column-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.column-header i {
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+
+.column-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.rating-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rating-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rating-position {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--primary);
+  width: 20px;
+  text-align: center;
+}
+
+.rating-user {
+  flex: 1;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rating-value {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}

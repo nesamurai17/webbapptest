@@ -10,7 +10,13 @@ const appState = {
   energy: 0,
   balance: 0,
   userId: tg.initDataUnsafe?.user?.id || null,
-  currentTask: null
+  currentTask: null,
+  teams: [],
+  ratings: {
+    cash: [],
+    tasks: [],
+    invites: []
+  }
 };
 
 function updateUI() {
@@ -28,6 +34,60 @@ function updateUI() {
       document.getElementById("user-avatar").src = user.photo_url;
     }
   }
+}
+
+async function loadTeams() {
+  try {
+    const { data, error } = await supabase
+      .from('teams')
+      .select('team_id, score')
+      .order('score', { ascending: false }); // Сортируем по score
+
+    if (error) throw error;
+    
+    if (data) {
+      appState.teams = data;
+      renderTeams();
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки команд:", error);
+    tg.showAlert("Ошибка загрузки списка команд");
+  }
+}
+
+function renderTeams() {
+  const teamsContainer = document.getElementById('teams-page');
+  if (!teamsContainer) return;
+
+  // Очищаем существующие карточки (кроме header)
+  const existingCards = teamsContainer.querySelectorAll('.card');
+  existingCards.forEach(card => card.remove());
+
+  // Создаем карточки для каждой команды
+  appState.teams.forEach((team, index) => {
+    const teamCard = document.createElement('div');
+    teamCard.className = 'card';
+    
+    // Определяем иконку и бейдж в зависимости от позиции в рейтинге
+    const isTopTeam = index < 3; // Топ-3 команды
+    const badgeText = isTopTeam ? `Топ ${index + 1}` : `Очки: ${team.score}`;
+    
+    teamCard.innerHTML = `
+      <div class="card-title">
+        <i class="fas ${isTopTeam ? 'fa-crown' : 'fa-users'}"></i>
+        Команда #${team.team_id}
+      </div>
+      <div class="badge ${isTopTeam ? 'badge-premium' : 'badge-primary'}">
+        ${badgeText}
+      </div>
+      <p class="card-description">
+        ${isTopTeam ? 'Лидер рейтинга' : 'Присоединяйтесь и зарабатывайте очки'}
+      </p>
+      
+    `;
+    
+    teamsContainer.appendChild(teamCard);
+  });
 }
 
 async function updateEnergyInDB(newEnergy) {
@@ -125,9 +185,80 @@ async function loadUserData() {
   }
 }
 
+async function loadAllRatings() {
+  try {
+    // Загружаем рейтинг по балансу (cash) с именами
+    const { data: cashData } = await supabase
+      .from('users')
+      .select('user_id, cash, name') // Добавляем поле name
+      .order('cash', { ascending: false })
+      .limit(10);
+    
+    // Загружаем рейтинг по заданиям (countoftasks) с именами
+    const { data: tasksData } = await supabase
+      .from('users')
+      .select('user_id, countoftasks, name') // Добавляем поле name
+      .order('countoftasks', { ascending: false })
+      .limit(10);
+    
+    // Пока оставляем рейтинг по инвайтам пустым
+    const invitesData = [];
+    
+    if (cashData) appState.ratings.cash = cashData;
+    if (tasksData) appState.ratings.tasks = tasksData;
+    appState.ratings.invites = invitesData;
+    
+    renderAllRatings();
+  } catch (error) {
+    console.error("Ошибка загрузки рейтингов:", error);
+    tg.showAlert("Ошибка загрузки рейтингов");
+  }
+}
+
+function renderRatingList(elementId, data, valueField) {
+  const container = document.getElementById(elementId);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (data.length === 0) {
+    container.innerHTML = '<div class="loading">Нет данных</div>';
+    return;
+  }
+  
+  data.forEach((user, index) => {
+    const item = document.createElement('div');
+    item.className = 'rating-item';
+    
+    // Используем user.name или показываем "Аноним", если имя отсутствует
+    const userName = user.name || `Игрок ${user.user_id.slice(0, 4)}`;
+    
+    item.innerHTML = `
+      <div class="rating-position">${index + 1}</div>
+      <div class="rating-user" title="${userName}">${userName}</div>
+      <div class="rating-value">${user[valueField] || 0}</div>
+    `;
+    
+    container.appendChild(item);
+  });
+}
+
+// Функция для отрисовки всех рейтингов
+function renderAllRatings() {
+  renderRatingList('cash-rating', appState.ratings.cash, 'cash');
+  renderRatingList('tasks-rating', appState.ratings.tasks, 'countoftasks');
+  renderRatingList('invites-rating', appState.ratings.invites, 'invites');
+}
+
+
+
+
+
 function initApp() {
   updateUI();
   loadUserData();
+  loadTeams();
+  loadAllRatings(); 
   switchTab('home');
 
   // Set up global functions
