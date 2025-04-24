@@ -162,6 +162,7 @@ function switchTab(tabName) {
   
   // Show selected page
   document.getElementById(`${tabName}-page`).classList.add('active');
+  updateUI();
 }
 
 async function loadUserData() {
