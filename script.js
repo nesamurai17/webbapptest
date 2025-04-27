@@ -102,43 +102,105 @@ async function syncUserTasks() {
 
 async function loadTasks() {
   try {
-    const { data: allTasks, error } = await supabase
+    console.log('[loadTasks] Начало загрузки заданий');
+    
+    // 1. Загрузка данных из Supabase
+    const { data: allTasks, error, status } = await supabase
       .from('tasks')
       .select('*')
       .order('task_id', { ascending: true });
 
-    if (error) throw error;
-    
-    if (allTasks) {
-      const groupedTasks = {};
-      allTasks.forEach(task => {
+    console.log(`[loadTasks] Статус запроса: ${status}`);
+
+    if (error) {
+      console.error('[loadTasks] Ошибка Supabase:', {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      });
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    // 2. Проверка полученных данных
+    if (!Array.isArray(allTasks)) {
+      console.error('[loadTasks] Данные не являются массивом:', allTasks);
+      throw new Error('Invalid data format from database');
+    }
+
+    console.log(`[loadTasks] Получено ${allTasks.length} заданий`);
+
+    // 3. Группировка заданий по блокам
+    const groupedTasks = {};
+    const userTaskMap = new Map(
+      appState.userTasks.map(task => [task.task_id, task])
+    );
+
+    allTasks.forEach(task => {
+      try {
+        if (!task.task_id) {
+          console.warn('[loadTasks] Задание без task_id пропущено');
+          return;
+        }
+
         const [blockId] = task.task_id.split('-');
+        if (!blockId) {
+          console.warn('[loadTasks] Не удалось определить blockId для:', task.task_id);
+          return;
+        }
+
         if (!groupedTasks[blockId]) {
           groupedTasks[blockId] = {
-            price: task.price,
-            reward: task.reward,
+            price: task.price || 0,
+            reward: task.reward || 0,
             tasks: [],
-            blockId: blockId // Добавляем ID блока для обновления доступа
+            blockId: blockId
           };
         }
-        
-        const userTask = appState.userTasks.find(t => t.task_id === task.task_id);
+
+        const userTask = userTaskMap.get(task.task_id) || {
+          access: 0,
+          completed: 0
+        };
+
         groupedTasks[blockId].tasks.push({
           ...task,
-          access: userTask?.access || 0,
-          completed: userTask?.completed || 0
+          access: userTask.access,
+          completed: userTask.completed
         });
-      });
-      
-      appState.tasks = Object.values(groupedTasks);
-      renderTasks();
-    }
+      } catch (e) {
+        console.error('[loadTasks] Ошибка обработки задания:', task, e);
+      }
+    });
+
+    // 4. Сохранение и рендеринг
+    appState.tasks = Object.values(groupedTasks);
+    console.log('[loadTasks] Сформировано блоков заданий:', appState.tasks.length);
+    
+    renderTasks();
+    return true;
+
   } catch (error) {
-    console.error("Ошибка загрузки заданий:", error);
+    console.error('[loadTasks] Критическая ошибка:', error);
     tg.showAlert("Ошибка загрузки списка заданий");
+    
+    // Создаем fallback данные для отображения
+    appState.tasks = [{
+      price: 0,
+      reward: 0,
+      tasks: [{
+        task_id: 'fallback-1',
+        name: 'Пример задания',
+        text: 'Описание примера задания',
+        access: 0,
+        completed: 0
+      }],
+      blockId: 'fallback'
+    }];
+    
+    renderTasks();
+    return false;
   }
 }
-
 async function updateTaskAccess(blockId) {
   try {
     // Получаем все task_id из этого блока
