@@ -547,29 +547,6 @@ async function initApp() {
     console.log("Инициализация приложения...");
     console.log("User ID:", appState.userId);
     
-    await loadUserData();
-    console.log("Данные пользователя загружены");
-    
-    await initUserTasks();
-    console.log("Задания пользователя инициализированы");
-    
-    await loadTeams();
-    console.log("Команды загружены");
-    
-    await loadTasks();
-    console.log("Задания загружены");
-    
-    await loadAllRatings();
-    console.log("Рейтинги загружены");
-    
-    switchTab('home');
-    console.log("Приложение успешно инициализировано");
-
-  } catch (error) {
-    console.error("Полная ошибка инициализации:", error);
-    tg.showAlert(`Ошибка загрузки: ${error.message}`);
-  }
-  try {
     updateUI();
     await loadUserData();
     await initUserTasks();
@@ -578,15 +555,17 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
+    // Экспорт функций в глобальную область видимости
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
     window.showTaskDetails = showTaskDetails;
     window.showConfirmAvvaModal = showConfirmAvvaModal;
 
+    console.log("Приложение успешно инициализировано");
   } catch (error) {
     console.error("Ошибка инициализации:", error);
-    tg.showAlert("Ошибка загрузки приложения");
+    tg.showAlert("Ошибка загрузки приложения: " + error.message);
   }
 }
 document.addEventListener('DOMContentLoaded', initApp);
