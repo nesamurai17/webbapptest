@@ -201,6 +201,7 @@ async function loadTasks() {
     return false;
   }
 }
+
 async function updateTaskAccess(blockId) {
   try {
     // Получаем все task_id из этого блока
@@ -270,9 +271,15 @@ function renderTasks() {
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
     if (!taskBlock || !taskBlock.tasks) return;
-    
-    const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
-    if (!hasUncompletedTasks) return;
+
+    // Проверяем, есть ли у пользователя доступ к этому блоку заданий
+    const hasAccess = taskBlock.tasks.every(task => {
+      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
+      return userTask?.access === 1;
+    });
+
+    // Если все задания в блоке уже доступны, пропускаем блок
+    if (hasAccess) return;
 
     const price = taskBlock.price || 0;
     const reward = taskBlock.reward || 0;
@@ -312,14 +319,17 @@ function renderTasks() {
       }
     });
 
-    const startButton = document.createElement('button');
-    startButton.className = 'btn btn-primary';
-    startButton.textContent = 'Начать';
-    startButton.onclick = async function() {
-      showConfirmAvvaModal(price, reward, taskBlock.blockId);
-    };
+    // Если у пользователя уже есть доступ, не показываем кнопку "Начать"
+    if (!hasAccess) {
+      const startButton = document.createElement('button');
+      startButton.className = 'btn btn-primary';
+      startButton.textContent = 'Начать';
+      startButton.onclick = async function() {
+        showConfirmAvvaModal(price, reward, taskBlock.blockId);
+      };
+      blockCard.appendChild(startButton);
+    }
 
-    blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
   });
 }
