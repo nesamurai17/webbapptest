@@ -272,15 +272,6 @@ function renderTasks() {
   appState.tasks.forEach((taskBlock, blockIndex) => {
     if (!taskBlock || !taskBlock.tasks) return;
 
-    // Проверяем, есть ли у пользователя доступ к этому блоку заданий
-    const hasAccess = taskBlock.tasks.every(task => {
-      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
-      return userTask?.access === 1;
-    });
-
-    // Если все задания в блоке уже доступны, пропускаем блок
-    if (hasAccess) return;
-
     const price = taskBlock.price || 0;
     const reward = taskBlock.reward || 0;
     const blockName = `Блок заданий #${blockIndex + 1}`;
@@ -302,24 +293,28 @@ function renderTasks() {
       <div class="task-steps">
     `;
 
-    taskBlock.tasks.forEach((task, taskIndex) => {
-      if (task.completed === 0) {
-        const taskName = task.name || `Задание ${taskIndex + 1}`;
-        const taskText = task.text || 'Описание отсутствует';
-        
-        blockCard.querySelector('.task-steps').innerHTML += `
-          <div class="task-step">
-            <div class="step-number">${taskIndex + 1}</div>
-            <div class="step-content">
-              <div class="step-title">${taskName}</div>
-              <div class="step-description">${taskText}</div>
-            </div>
-          </div>
-        `;
-      }
+    // Проверяем, есть ли доступ к заданиям этого блока
+    const hasAccess = taskBlock.tasks.every(task => {
+      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
+      return userTask?.access === 1;
     });
 
-    // Если у пользователя уже есть доступ, не показываем кнопку "Начать"
+    taskBlock.tasks.forEach((task, taskIndex) => {
+      const taskName = task.name || `Задание ${taskIndex + 1}`;
+      const taskText = task.text || 'Описание отсутствует';
+      
+      blockCard.querySelector('.task-steps').innerHTML += `
+        <div class="task-step">
+          <div class="step-number">${taskIndex + 1}</div>
+          <div class="step-content">
+            <div class="step-title">${taskName}</div>
+            <div class="step-description">${taskText}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    // Добавляем кнопку "Начать" ТОЛЬКО если доступа нет
     if (!hasAccess) {
       const startButton = document.createElement('button');
       startButton.className = 'btn btn-primary';
@@ -328,18 +323,12 @@ function renderTasks() {
         showConfirmAvvaModal(price, reward, taskBlock.blockId);
       };
       blockCard.appendChild(startButton);
-    }
-
-    if (hasAccess) {
-      blockCard.innerHTML += `<p class="card-description">Доступ открыт!</p>`;
     } else {
-      const startButton = document.createElement('button');
-      startButton.className = 'btn btn-primary';
-      startButton.textContent = 'Начать';
-      startButton.onclick = async function() {
-        showConfirmAvvaModal(price, reward, taskBlock.blockId);
-      };
-      blockCard.appendChild(startButton);
+      // Можно добавить сообщение о доступности (опционально)
+      const accessBadge = document.createElement('div');
+      accessBadge.className = 'badge badge-success';
+      accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
+      blockCard.appendChild(accessBadge);
     }
 
     tasksContainer.appendChild(blockCard);
