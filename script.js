@@ -117,7 +117,8 @@ async function loadTasks() {
           groupedTasks[blockId] = {
             price: task.price,
             reward: task.reward,
-            tasks: []
+            tasks: [],
+            blockId: blockId // Добавляем ID блока для обновления доступа
           };
         }
         
@@ -135,6 +136,45 @@ async function loadTasks() {
   } catch (error) {
     console.error("Ошибка загрузки заданий:", error);
     tg.showAlert("Ошибка загрузки списка заданий");
+  }
+}
+
+async function updateTaskAccess(blockId) {
+  try {
+    // Получаем все task_id из этого блока
+    const { data: blockTasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('task_id')
+      .like('task_id', `${blockId}-%`);
+    
+    if (tasksError) throw tasksError;
+    
+    if (blockTasks && blockTasks.length > 0) {
+      const taskIds = blockTasks.map(task => task.task_id);
+      
+      // Обновляем access для всех задач блока у текущего пользователя
+      const { error: updateError } = await supabase
+        .from('user_tasks')
+        .update({ access: 1 })
+        .eq('user_id', appState.userId)
+        .in('task_id', taskIds);
+      
+      if (updateError) throw updateError;
+      
+      // Обновляем локальное состояние
+      appState.userTasks = appState.userTasks.map(task => {
+        if (taskIds.includes(task.task_id)) {
+          return { ...task, access: 1 };
+        }
+        return task;
+      });
+      
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Ошибка обновления доступа к заданиям:", error);
+    throw error;
   }
 }
 
@@ -196,14 +236,15 @@ function renderTasks() {
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
     startButton.textContent = 'Начать';
-    startButton.onclick = function() {
-      showConfirmAvvaModal(price, reward);
+    startButton.onclick = async function() {
+      showConfirmAvvaModal(price, reward, taskBlock.blockId);
     };
 
     blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
   });
 }
+
 
 async function loadTeams() {
   try {
@@ -260,20 +301,43 @@ function showTaskDetails(task) {
   switchTab('task-details');
 }
 
-function showConfirmAvvaModal(avvaCost, reward) {
-  document.getElementById("confirmAvvaText").innerHTML = `
-    Вы подтверждаете списание <strong>${avvaCost} AVVA</strong>?<br><br>
-    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
-  `;
-  
-  const confirmBtn = document.getElementById("confirmAvvaBtn");
-  confirmBtn.onclick = function() {
-    startTask(avvaCost);
-    closeModal('confirmAvvaModal');
-  };
-  
-  document.getElementById("confirmAvvaModal").classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
+async function startTask(avvaCost, blockId) {
+  if (appState.balance < avvaCost) {
+    tg.showAlert("Недостаточно AVVA на балансе");
+    return;
+  }
+
+  try {
+    // Сначала списываем AVVA
+    appState.balance -= avvaCost;
+    updateUI();
+
+    // Обновляем баланс в базе данных
+    const { error: balanceError } = await supabase
+      .from('users')
+      .update({ cash: appState.balance })
+      .eq('user_id', appState.userId);
+
+    if (balanceError) throw balanceError;
+
+    // Обновляем доступ к заданиям блока
+    await updateTaskAccess(blockId);
+
+    tg.showPopup({ 
+      title: "Задание начато!", 
+      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
+    });
+    
+    // Перезагружаем задания, чтобы отобразить изменения
+    await loadTasks();
+    
+  } catch (error) {
+    console.error("Ошибка:", error);
+    // Откатываем изменения в случае ошибки
+    appState.balance += avvaCost;
+    updateUI();
+    tg.showAlert("Ошибка при начале задания");
+  }
 }
 
 function closeModal(modalId) {
@@ -377,34 +441,39 @@ function renderAllRatings() {
   renderRatingList('invites-rating', appState.ratings.invites, 'invites');
 }
 
-async function startTask(avvaCost) {
+async function startTask(avvaCost, blockId) {
   if (appState.balance < avvaCost) {
     tg.showAlert("Недостаточно AVVA на балансе");
     return;
   }
 
   try {
+    // Сначала списываем AVVA
     appState.balance -= avvaCost;
     updateUI();
 
-    const { error } = await supabase
+    // Обновляем баланс в базе данных
+    const { error: balanceError } = await supabase
       .from('users')
-      .update({ 
-        cash: appState.balance
-      })
+      .update({ cash: appState.balance })
       .eq('user_id', appState.userId);
 
-    if (error) throw error;
+    if (balanceError) throw balanceError;
+
+    // Обновляем доступ к заданиям блока
+    await updateTaskAccess(blockId);
 
     tg.showPopup({ 
       title: "Задание начато!", 
-      message: `Списано ${avvaCost} AVVA` 
+      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
     });
     
+    // Перезагружаем задания, чтобы отобразить изменения
     await loadTasks();
     
   } catch (error) {
     console.error("Ошибка:", error);
+    // Откатываем изменения в случае ошибки
     appState.balance += avvaCost;
     updateUI();
     tg.showAlert("Ошибка при начале задания");
