@@ -240,6 +240,23 @@ async function updateTaskAccess(blockId) {
   }
 }
 
+function showConfirmAvvaModal(price, reward, blockId) {
+  const modal = document.getElementById('confirmAvvaModal');
+  const textElement = document.getElementById('confirmAvvaText');
+  const button = document.getElementById('confirmAvvaBtn');
+  
+  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} очков</strong>`;
+  
+  button.onclick = function() {
+    startTask(price, blockId);
+    closeModal('confirmAvvaModal');
+  };
+  
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
+
+
 function renderTasks() {
   const tasksContainer = document.getElementById('tasks-page');
   if (!tasksContainer) return;
