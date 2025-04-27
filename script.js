@@ -200,12 +200,18 @@ function renderTasks() {
   tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
+    // Проверяем, есть ли невыполненные задания в блоке
+    const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
+    
+    // Если все задания выполнены - пропускаем блок
+    if (!hasUncompletedTasks) return;
+
+    const allCompleted = taskBlock.tasks.every(task => task.completed === 1);
+    const anyAccess = taskBlock.tasks.some(task => task.access === 1);
+
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
     
-    const allCompleted = taskBlock.tasks.every(t => t.completed);
-    const anyAccess = taskBlock.tasks.some(t => t.access);
-
     blockCard.innerHTML = `
       <div class="card-title">
         <i class="fas fa-star"></i>
@@ -216,7 +222,6 @@ function renderTasks() {
       </div>
       <div class="badge ${allCompleted ? 'badge-premium' : 'badge-primary'}" style="margin-top: 0.5rem;">
         <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
-        ${allCompleted ? ' (получено)' : ''}
       </div>
       <p class="card-description">
         ${anyAccess ? 'Доступ открыт' : 'Доступ закрыт'}
@@ -241,7 +246,7 @@ function renderTasks() {
 
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
-    startButton.disabled = !anyAccess || allCompleted;
+    startButton.disabled = allCompleted || !anyAccess;
     startButton.innerHTML = allCompleted 
       ? '<i class="fas fa-check"></i> Завершено'
       : '<i class="fas fa-play"></i> Начать';
@@ -254,6 +259,7 @@ function renderTasks() {
     tasksContainer.appendChild(blockCard);
   });
 }
+
 async function loadTeams() {
   try {
     const { data, error } = await supabase
