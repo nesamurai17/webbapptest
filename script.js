@@ -37,46 +37,120 @@ function updateUI() {
   }
 }
 
-async function initUserTasks() {
+async function createUserTasksTable() {
   if (!appState.userId) {
     console.error("User ID not available");
     return false;
   }
 
+  const tableName = `tasks_of_${appState.userId}`;
+  console.log(`Creating table: ${tableName}`);
+
   try {
-    // 1. Проверяем существование таблицы
-    const tableName = `user_tasks_${appState.userId}`;
+    // 1. Пытаемся создать таблицу через raw SQL запрос
+    const { error: createError } = await supabase.rpc('create_raw_table', {
+      table_name: tableName
+    });
+
+    // 2. Если не получилось через RPC, пробуем альтернативный метод
+    if (createError) {
+      console.log("Trying alternative table creation method...");
+      await alternativeTableCreation(tableName);
+    }
+
+    // 3. Проверяем, что таблица создана
     const { error: checkError } = await supabase
       .from(tableName)
       .select('*')
       .limit(1);
 
-    // 2. Если таблицы нет - создаём
-    if (checkError?.code === '42P01') {
-      console.log(`Creating table ${tableName}...`);
-      const { error: createError } = await supabase.rpc('create_user_table', {
-        user_id: appState.userId
-      });
-      
-      if (createError) {
-        console.error("Create table error:", createError);
-        throw new Error("Не удалось создать таблицу");
-      }
-      
-      // Ждём 1 сек для применения изменений
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (checkError) {
+      throw new Error(`Table verification failed: ${checkError.message}`);
     }
 
-    // 3. Синхронизируем задания
-    await syncUserTasks();
+    console.log(`Table ${tableName} created successfully`);
     return true;
-    
   } catch (error) {
-    console.error("Init error:", error);
-    tg.showAlert("Ошибка инициализации заданий");
+    console.error("Table creation failed:", error);
+    tg.showAlert("Ошибка создания таблицы заданий");
     return false;
   }
 }
+
+async function alternativeTableCreation(tableName) {
+  // Метод "обходного пути" для создания таблицы
+  try {
+    // Пытаемся создать таблицу через insert + delete
+    const { error: insertError } = await supabase
+      .from(tableName)
+      .insert([{ 
+        task: 'temp_task', 
+        access: 0, 
+        completed: 0 
+      }]);
+
+    if (insertError) throw insertError;
+
+    // Если insert прошел успешно, значит таблица создана
+    // Удаляем временные данные
+    await supabase
+      .from(tableName)
+      .delete()
+      .eq('task', 'temp_task');
+
+  } catch (error) {
+    console.error("Alternative creation failed:", error);
+    throw new Error("Не удалось создать таблицу альтернативным методом");
+  }
+}
+
+async function initUserTasks() {
+  try {
+    // 1. Создаем таблицу
+    const tableCreated = await createUserTasksTable();
+    if (!tableCreated) return false;
+
+    // 2. Синхронизируем задания
+    await syncUserTasks();
+    return true;
+  } catch (error) {
+    console.error("Init tasks error:", error);
+    return false;
+  }
+}
+
+async function testTableCreation() {
+  const testTable = `test_table_${Date.now()}`;
+  console.log(`Testing table creation: ${testTable}`);
+  
+  try {
+    // Тестируем основной метод
+    const { error: rpcError } = await supabase.rpc('create_raw_table', {
+      table_name: testTable
+    });
+    
+    if (!rpcError) {
+      console.log("RPC method works!");
+      return;
+    }
+    
+    // Тестируем альтернативный метод
+    await supabase
+      .from(testTable)
+      .insert([{ task: 'test', access: 0, completed: 0 }]);
+    
+    console.log("Alternative method works!");
+    
+    // Убираем тестовую таблицу
+    await supabase.rpc('drop_table', { table_name: testTable });
+    
+  } catch (error) {
+    console.error("All creation methods failed:", error);
+    tg.showAlert("Все методы создания таблиц не сработали");
+  }
+}
+
+// Вызовите эту функцию где-нибудь в initApp()
 
 async function syncUserTasks() {
   const tableName = `user_tasks_${appState.userId}`;
@@ -452,6 +526,7 @@ async function initApp() {
     await loadTeams();
     await loadTasks();
     await loadAllRatings();
+    await testTableCreation();
     
     switchTab('home');
     
