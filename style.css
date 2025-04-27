@@ -588,3 +588,22 @@ body {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
+
+/* Стили для модального окна подтверждения */
+#confirmAvvaModal .modal-content {
+  max-width: 350px;
+}
+
+#confirmAvvaModal .modal-text {
+  text-align: center;
+  line-height: 1.6;
+}
+
+#confirmAvvaModal .fa-coins {
+  color: var(--warning);
+}
+
+#confirmAvvaModal strong {
+  color: var(--primary);
+  font-weight: 600;
+}

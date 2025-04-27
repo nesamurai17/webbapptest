@@ -200,10 +200,7 @@ function renderTasks() {
   tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
-    // Проверяем, есть ли хотя бы одно невыполненное задание в блоке
     const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
-    
-    // Если ВСЕ задания выполнены (нет ни одного невыполненного) - полностью пропускаем этот блок
     if (!hasUncompletedTasks) return;
 
     const anyAccess = taskBlock.tasks.some(task => task.access === 1);
@@ -211,39 +208,7 @@ function renderTasks() {
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
     
-    blockCard.innerHTML = `
-      <div class="card-title">
-        <i class="fas fa-star"></i>
-        Блок заданий #${blockIndex + 1}
-      </div>
-      <div class="badge badge-primary">
-        <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} энергии
-      </div>
-      <div class="badge badge-primary" style="margin-top: 0.5rem;">
-        <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
-      </div>
-      <p class="card-description">
-        ${anyAccess ? 'Доступ открыт' : 'Доступ закрыт'}
-      </p>
-      <div class="task-steps">
-    `;
-
-    const taskSteps = blockCard.querySelector('.task-steps');
-    taskBlock.tasks.forEach((task, taskIndex) => {
-      // Показываем только невыполненные задания
-      if (task.completed === 0) {
-        const taskStep = document.createElement('div');
-        taskStep.className = 'task-step';
-        taskStep.innerHTML = `
-          <div class="step-number">${taskIndex + 1}</div>
-          <div class="step-content">
-            <div class="step-title">${task.name || `Шаг ${taskIndex + 1}`}</div>
-            <div class="step-description">${task.text || 'Описание задания'}</div>
-          </div>
-        `;
-        taskSteps.appendChild(taskStep);
-      }
-    });
+    // ... (остальной код создания карточки)
 
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
@@ -251,7 +216,7 @@ function renderTasks() {
     startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
     
     if (anyAccess) {
-      startButton.onclick = () => showEnergyModal(taskBlock.price);
+      startButton.onclick = () => showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
     }
     
     blockCard.appendChild(startButton);
@@ -473,6 +438,53 @@ function renderAllRatings() {
   renderRatingList('invites-rating', appState.ratings.invites, 'invites');
 }
 
+// Показываем модальное окно подтверждения
+function showConfirmAvvaModal(avvaCost, reward) {
+  document.getElementById("avvaCost").textContent = avvaCost;
+  document.getElementById("confirmAvvaText").innerHTML = `
+    Вы уверены, что хотите списать <strong>${avvaCost} AVVA</strong> 
+    для начала задания?<br><br>
+    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
+  `;
+  
+  // Обработчик подтверждения
+  document.getElementById("confirmAvvaButton").onclick = () => {
+    startTask(avvaCost);
+    closeModal('confirmAvvaModal');
+  };
+  
+  document.getElementById("confirmAvvaModal").classList.add('active');
+}
+
+// Функция начала задания (уже есть у вас)
+async function startTask(avvaCost) {
+  if (appState.balance < avvaCost) {
+    tg.showAlert("Недостаточно AVVA на балансе");
+    return;
+  }
+
+  try {
+    // Списание AVVA
+    const newBalance = appState.balance - avvaCost;
+    const { error } = await supabase
+      .from('users')
+      .update({ cash: newBalance })
+      .eq('user_id', appState.userId);
+    
+    if (!error) {
+      appState.balance = newBalance;
+      updateUI();
+      tg.showPopup({
+        title: "Списание успешно",
+        message: `Списано ${avvaCost} AVVA`
+      });
+      // Здесь можно добавить логику начала задания
+    }
+  } catch (error) {
+    console.error("Ошибка списания:", error);
+    tg.showAlert("Ошибка списания AVVA");
+  }
+}
 
 
 
