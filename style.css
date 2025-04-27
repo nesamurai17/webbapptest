@@ -32,6 +32,7 @@ body {
   max-width: 500px;
   margin: 0 auto;
   padding: 1rem;
+  overflow-x: hidden;
 }
 
 .page {
@@ -40,6 +41,7 @@ body {
   max-width: 500px;
   margin: 0 auto;
   padding: 0 1rem;
+  overflow-x: hidden;
 }
 
 .page.active {
@@ -61,6 +63,8 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .user-avatar {
@@ -73,17 +77,24 @@ body {
 
 .user-info {
   flex: 1;
+  min-width: 0;
 }
 
 .user-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-id {
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .balance-card {
@@ -93,6 +104,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .balance-card i {
@@ -108,6 +120,8 @@ body {
   box-shadow: var(--card-shadow);
   transition: all 0.3s ease;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .card:hover {
@@ -121,6 +135,9 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-title i {
@@ -135,6 +152,10 @@ body {
   border-radius: 2rem;
   font-size: 0.85rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .badge-primary {
@@ -147,10 +168,16 @@ body {
   color: var(--accent);
 }
 
+.badge-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
 .card-description {
   color: var(--text-secondary);
   margin: 1rem 0;
   line-height: 1.5;
+  word-wrap: break-word;
 }
 
 /* Buttons */
@@ -166,6 +193,9 @@ body {
   border: none;
   cursor: pointer;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btn-primary {
@@ -182,6 +212,15 @@ body {
   background: rgba(124, 58, 237, 0.2);
 }
 
+.btn-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.btn-success:hover {
+  background: rgba(16, 185, 129, 0.3);
+}
+
 .btn-group {
   display: flex;
   gap: 1rem;
@@ -190,6 +229,11 @@ body {
 
 .btn-group .btn {
   flex: 1;
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
 }
 
 /* Task details */
@@ -204,6 +248,7 @@ body {
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
 }
 
 .task-step:last-child {
@@ -227,16 +272,27 @@ body {
 
 .step-content {
   flex: 1;
+  min-width: 0;
 }
 
 .step-title {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .step-description {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  word-wrap: break-word;
+}
+
+.step-action {
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 
 /* NFT cards */
@@ -276,12 +332,16 @@ body {
 .nft-title {
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nft-description {
   color: var(--text-secondary);
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  word-wrap: break-word;
 }
 
 /* Bottom navigation */
@@ -393,6 +453,7 @@ body {
 .modal-text {
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
+  word-wrap: break-word;
 }
 
 /* Стили для страницы рейтинга */
@@ -573,4 +634,20 @@ body {
 #confirmAvvaModal strong {
   color: var(--primary);
   font-weight: 600;
+}
+
+.completed-step {
+  opacity: 0.7;
+}
+
+.completed-step .step-number {
+  background: var(--success);
+}
+
+.completed-step .step-title {
+  text-decoration: line-through;
+}
+
+.completed-step .step-description {
+  text-decoration: line-through;
 }

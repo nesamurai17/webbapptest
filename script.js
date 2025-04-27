@@ -172,8 +172,24 @@ async function loadTasks() {
       }
     });
 
-    // 4. Сохранение и рендеринг
-    appState.tasks = Object.values(groupedTasks);
+    // 4. Фильтрация выполненных блоков
+    appState.tasks = Object.values(groupedTasks).filter(block => {
+      // Показываем блок, если:
+      // 1. Есть хотя бы одно задание с доступом и не выполненное
+      // 2. Или если нет доступа ни к одному заданию
+      const hasAccess = block.tasks.some(task => {
+        const userTask = userTaskMap.get(task.task_id);
+        return userTask?.access === 1;
+      });
+
+      const allCompleted = block.tasks.every(task => {
+        const userTask = userTaskMap.get(task.task_id);
+        return userTask?.completed === 1;
+      });
+
+      return !allCompleted && (hasAccess || !hasAccess);
+    });
+    
     console.log('[loadTasks] Сформировано блоков заданий:', appState.tasks.length);
     
     renderTasks();
@@ -241,22 +257,68 @@ async function updateTaskAccess(blockId) {
   }
 }
 
-function showConfirmAvvaModal(price, reward, blockId) {
-  const modal = document.getElementById('confirmAvvaModal');
-  const textElement = document.getElementById('confirmAvvaText');
-  const button = document.getElementById('confirmAvvaBtn');
-  
-  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} очков</strong>`;
-  
-  button.onclick = function() {
-    startTask(price, blockId);
-    closeModal('confirmAvvaModal');
-  };
-  
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
-}
+async function completeTask(taskId, blockId) {
+  try {
+    // Обновляем статус задания в базе данных
+    const { error: updateError } = await supabase
+      .from('user_tasks')
+      .update({ completed: 1 })
+      .eq('user_id', appState.userId)
+      .eq('task_id', taskId);
+    
+    if (updateError) throw updateError;
 
+    // Обновляем локальное состояние
+    appState.userTasks = appState.userTasks.map(task => {
+      if (task.task_id === taskId) {
+        return { ...task, completed: 1 };
+      }
+      return task;
+    });
+
+    // Проверяем, все ли задания в блоке выполнены
+    const block = appState.tasks.find(b => b.blockId === blockId);
+    if (!block) return true;
+
+    const allTasksInBlock = block.tasks || [];
+    const allCompleted = allTasksInBlock.every(t => {
+      const userTask = appState.userTasks.find(ut => ut.task_id === t.task_id);
+      return userTask?.completed === 1;
+    });
+
+    if (allCompleted) {
+      // Начисляем награду за выполнение всех заданий блока
+      if (block.reward > 0) {
+        appState.balance += block.reward;
+        updateUI();
+
+        // Обновляем баланс в базе данных
+        const { error: balanceError } = await supabase
+          .from('users')
+          .update({ cash: appState.balance })
+          .eq('user_id', appState.userId);
+        
+        if (balanceError) throw balanceError;
+
+        tg.showPopup({
+          title: "Поздравляем!",
+          message: `Вы выполнили все задания блока и получили ${block.reward} AVVA!`
+        });
+      }
+
+      // Перезагружаем задания, чтобы скрыть выполненный блок
+      await loadTasks();
+    } else {
+      // Если не все задания выполнены, просто обновляем отображение текущего блока
+      renderTasks();
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Ошибка выполнения задания:", error);
+    throw error;
+  }
+}
 
 function renderTasks() {
   const tasksContainer = document.getElementById('tasks-page');
@@ -288,13 +350,13 @@ function renderTasks() {
         <i class="fas fa-coins"></i> Стоимость: ${price} AVVA
       </div>
       <div class="badge badge-premium" style="margin-top: 0.5rem;">
-        <i class="fas fa-gem"></i> Награда: ${reward} очков
+        <i class="fas fa-gem"></i> Награда: ${reward} AVVA
       </div>
       <div class="task-steps">
     `;
 
     // Проверяем, есть ли доступ к заданиям этого блока
-    const hasAccess = taskBlock.tasks.every(task => {
+    const hasAccess = taskBlock.tasks.some(task => {
       const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
       return userTask?.access === 1;
     });
@@ -302,16 +364,39 @@ function renderTasks() {
     taskBlock.tasks.forEach((task, taskIndex) => {
       const taskName = task.name || `Задание ${taskIndex + 1}`;
       const taskText = task.text || 'Описание отсутствует';
+      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id) || {};
+      const isCompleted = userTask.completed === 1;
       
-      blockCard.querySelector('.task-steps').innerHTML += `
-        <div class="task-step">
-          <div class="step-number">${taskIndex + 1}</div>
-          <div class="step-content">
-            <div class="step-title">${taskName}</div>
-            <div class="step-description">${taskText}</div>
-          </div>
+      const stepDiv = document.createElement('div');
+      stepDiv.className = `task-step ${isCompleted ? 'completed-step' : ''}`;
+      stepDiv.innerHTML = `
+        <div class="step-number">${taskIndex + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${taskName}</div>
+          <div class="step-description">${taskText}</div>
         </div>
       `;
+      
+      if (hasAccess && !isCompleted) {
+        const goButton = document.createElement('button');
+        goButton.className = 'btn btn-success btn-small step-action';
+        goButton.innerHTML = '<i class="fas fa-check"></i> GO';
+        goButton.onclick = async function() {
+          try {
+            await completeTask(task.task_id, taskBlock.blockId);
+            stepDiv.classList.add('completed-step');
+            stepDiv.querySelector('.step-number').style.background = 'var(--success)';
+            goButton.style.display = 'none';
+            tg.HapticFeedback.impactOccurred('light');
+          } catch (error) {
+            console.error("Ошибка выполнения задания:", error);
+            tg.showAlert("Ошибка выполнения задания");
+          }
+        };
+        stepDiv.appendChild(goButton);
+      }
+      
+      blockCard.querySelector('.task-steps').appendChild(stepDiv);
     });
 
     // Добавляем кнопку "Начать" ТОЛЬКО если доступа нет
@@ -320,6 +405,10 @@ function renderTasks() {
       startButton.className = 'btn btn-primary';
       startButton.textContent = 'Начать';
       startButton.onclick = function() {
+        if (appState.balance < price) {
+          tg.showAlert(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
+          return;
+        }
         showConfirmAvvaModal(price, reward, taskBlock.blockId, startButton, blockCard);
       };
       blockCard.appendChild(startButton);
@@ -340,10 +429,16 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   const textElement = document.getElementById('confirmAvvaText');
   const button = document.getElementById('confirmAvvaBtn');
   
-  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} очков</strong>`;
+  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} AVVA</strong>`;
   
   button.onclick = async function() {
     try {
+      if (appState.balance < price) {
+        tg.showAlert(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
+        closeModal('confirmAvvaModal');
+        return;
+      }
+      
       await startTask(price, blockId);
       // После успешного подтверждения скрываем кнопку и показываем бейдж
       startButton.style.display = 'none';
@@ -361,6 +456,45 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   
   modal.classList.add('active');
   tg.HapticFeedback.impactOccurred('light');
+}
+
+async function startTask(avvaCost, blockId) {
+  if (appState.balance < avvaCost) {
+    tg.showAlert("Недостаточно AVVA на балансе");
+    return;
+  }
+
+  try {
+    // Сначала списываем AVVA
+    appState.balance -= avvaCost;
+    updateUI();
+
+    // Обновляем баланс в базе данных
+    const { error: balanceError } = await supabase
+      .from('users')
+      .update({ cash: appState.balance })
+      .eq('user_id', appState.userId);
+
+    if (balanceError) throw balanceError;
+
+    // Обновляем доступ к заданиям блока
+    await updateTaskAccess(blockId);
+
+    tg.showPopup({ 
+      title: "Задание начато!", 
+      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
+    });
+    
+    // Перезагружаем задания, чтобы отобразить изменения
+    await loadTasks();
+    
+  } catch (error) {
+    console.error("Ошибка:", error);
+    // Откатываем изменения в случае ошибки
+    appState.balance += avvaCost;
+    updateUI();
+    tg.showAlert("Ошибка при начале задания");
+  }
 }
 
 async function loadTeams() {
@@ -416,45 +550,6 @@ function renderTeams() {
 function showTaskDetails(task) {
   appState.currentTask = task;
   switchTab('task-details');
-}
-
-async function startTask(avvaCost, blockId) {
-  if (appState.balance < avvaCost) {
-    tg.showAlert("Недостаточно AVVA на балансе");
-    return;
-  }
-
-  try {
-    // Сначала списываем AVVA
-    appState.balance -= avvaCost;
-    updateUI();
-
-    // Обновляем баланс в базе данных
-    const { error: balanceError } = await supabase
-      .from('users')
-      .update({ cash: appState.balance })
-      .eq('user_id', appState.userId);
-
-    if (balanceError) throw balanceError;
-
-    // Обновляем доступ к заданиям блока
-    await updateTaskAccess(blockId);
-
-    tg.showPopup({ 
-      title: "Задание начато!", 
-      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
-    });
-    
-    // Перезагружаем задания, чтобы отобразить изменения
-    await loadTasks();
-    
-  } catch (error) {
-    console.error("Ошибка:", error);
-    // Откатываем изменения в случае ошибки
-    appState.balance += avvaCost;
-    updateUI();
-    tg.showAlert("Ошибка при начале задания");
-  }
 }
 
 function closeModal(modalId) {
@@ -556,45 +651,6 @@ function renderAllRatings() {
   renderRatingList('cash-rating', appState.ratings.cash, 'cash');
   renderRatingList('tasks-rating', appState.ratings.tasks, 'countoftasks');
   renderRatingList('invites-rating', appState.ratings.invites, 'invites');
-}
-
-async function startTask(avvaCost, blockId) {
-  if (appState.balance < avvaCost) {
-    tg.showAlert("Недостаточно AVVA на балансе");
-    return;
-  }
-
-  try {
-    // Сначала списываем AVVA
-    appState.balance -= avvaCost;
-    updateUI();
-
-    // Обновляем баланс в базе данных
-    const { error: balanceError } = await supabase
-      .from('users')
-      .update({ cash: appState.balance })
-      .eq('user_id', appState.userId);
-
-    if (balanceError) throw balanceError;
-
-    // Обновляем доступ к заданиям блока
-    await updateTaskAccess(blockId);
-
-    tg.showPopup({ 
-      title: "Задание начато!", 
-      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
-    });
-    
-    // Перезагружаем задания, чтобы отобразить изменения
-    await loadTasks();
-    
-  } catch (error) {
-    console.error("Ошибка:", error);
-    // Откатываем изменения в случае ошибки
-    appState.balance += avvaCost;
-    updateUI();
-    tg.showAlert("Ошибка при начале задания");
-  }
 }
 
 async function initApp() {
