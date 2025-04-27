@@ -229,10 +229,25 @@ function renderTasks() {
   startButton.className = 'btn btn-primary';
   startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
   
-  // Новый обработчик с делегированием
-  startButton.onclick = function() {
-    window.showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
-  };
+  startButton.addEventListener('click', () => {
+    tg.HapticFeedback.impactOccurred('light');
+    
+    // Создаем модальное окно динамически
+    const modal = document.createElement('div');
+    modal.innerHTML = `
+      <div class="modal active" id="tempModal">
+        <div class="modal-content">
+          <h3>Подтверждение</h3>
+          <p>Списать ${taskBlock.price} AVVA?</p>
+          <button onclick="this.closest('.modal').remove(); startTask(${taskBlock.price})">
+            Подтвердить
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+  });
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
     // Проверяем, есть ли невыполненные задания
