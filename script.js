@@ -43,87 +43,81 @@ async function initUserTasks() {
     return false;
   }
 
-  const tableName = `tasks_of_${appState.userId}`;
-  console.log(`Attempting to init table: ${tableName}`);
-
   try {
-    // Простая проверка существования таблицы
+    // 1. Проверяем существование таблицы
+    const tableName = `user_tasks_${appState.userId}`;
     const { error: checkError } = await supabase
       .from(tableName)
       .select('*')
       .limit(1);
 
-    // Если таблица не существует (код ошибки 42P01)
-    if (checkError && checkError.code === '42P01') {
-      console.log(`Table ${tableName} doesn't exist, creating...`);
+    // 2. Если таблицы нет - создаём
+    if (checkError?.code === '42P01') {
+      console.log(`Creating table ${tableName}...`);
+      const { error: createError } = await supabase.rpc('create_user_table', {
+        user_id: appState.userId
+      });
       
-      // Создаем таблицу через обычный запрос (без RPC)
-      const { error: createError } = await supabase
-        .from(tableName)
-        .insert([{ 
-          task: 'temp', 
-          access: 0, 
-          completed: 0 
-        }], { returning: 'minimal' });
+      if (createError) {
+        console.error("Create table error:", createError);
+        throw new Error("Не удалось создать таблицу");
+      }
       
-      if (createError) throw createError;
-      
-      // Удаляем временную запись
-      await supabase
-        .from(tableName)
-        .delete()
-        .eq('task', 'temp');
+      // Ждём 1 сек для применения изменений
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Синхронизируем задания
-    await syncUserTasks(tableName);
+    // 3. Синхронизируем задания
+    await syncUserTasks();
     return true;
+    
   } catch (error) {
-    console.error("Ошибка инициализации заданий:", error);
-    tg.showAlert("Ошибка инициализации заданий: " + error.message);
+    console.error("Init error:", error);
+    tg.showAlert("Ошибка инициализации заданий");
     return false;
   }
 }
 
-async function syncUserTasks(tableName) {
+async function syncUserTasks() {
+  const tableName = `user_tasks_${appState.userId}`;
+  
   try {
-    // Получаем все задания из основной таблицы
+    // 1. Получаем все задания
     const { data: allTasks, error: tasksError } = await supabase
       .from('tasks')
-      .select('task_id');
-
+      .select('id, task_id');
+    
     if (tasksError) throw tasksError;
-    if (!allTasks || allTasks.length === 0) return true;
 
-    // Получаем текущие задания пользователя
-    const { data: userTasks, error: userTasksError } = await supabase
+    // 2. Получаем текущие задания пользователя
+    const { data: userTasks, error: userError } = await supabase
       .from(tableName)
-      .select('task');
+      .select('task_id');
+    
+    if (userError) throw userError;
 
-    if (userTasksError) throw userTasksError;
-
-    // Находим новые задания для добавления
-    const existingTasks = userTasks?.map(t => t.task) || [];
-    const tasksToAdd = allTasks
-      .filter(t => !existingTasks.includes(t.task_id))
+    // 3. Находим новые задания
+    const existingIds = userTasks.map(t => t.task_id);
+    const newTasks = allTasks
+      .filter(t => !existingIds.includes(t.task_id))
       .map(t => ({
-        task: t.task_id,
+        task_id: t.task_id,
         access: 0,
         completed: 0
       }));
 
-    if (tasksToAdd.length > 0) {
+    // 4. Добавляем новые
+    if (newTasks.length > 0) {
       const { error: insertError } = await supabase
         .from(tableName)
-        .insert(tasksToAdd);
-
+        .insert(newTasks);
+      
       if (insertError) throw insertError;
-      console.log(`Added ${tasksToAdd.length} tasks to ${tableName}`);
     }
-
+    
     return true;
   } catch (error) {
-    console.error("Ошибка синхронизации заданий:", error);
+    console.error("Sync error:", error);
     throw error;
   }
 }
