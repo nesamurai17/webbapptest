@@ -482,6 +482,32 @@ async function startTask(avvaCost, blockId) {
 
 async function initApp() {
   try {
+    console.log("Инициализация приложения...");
+    console.log("User ID:", appState.userId);
+    
+    await loadUserData();
+    console.log("Данные пользователя загружены");
+    
+    await initUserTasks();
+    console.log("Задания пользователя инициализированы");
+    
+    await loadTeams();
+    console.log("Команды загружены");
+    
+    await loadTasks();
+    console.log("Задания загружены");
+    
+    await loadAllRatings();
+    console.log("Рейтинги загружены");
+    
+    switchTab('home');
+    console.log("Приложение успешно инициализировано");
+
+  } catch (error) {
+    console.error("Полная ошибка инициализации:", error);
+    tg.showAlert(`Ошибка загрузки: ${error.message}`);
+  }
+  try {
     updateUI();
     await loadUserData();
     await initUserTasks();
