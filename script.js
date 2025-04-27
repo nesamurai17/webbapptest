@@ -330,6 +330,18 @@ function renderTasks() {
       blockCard.appendChild(startButton);
     }
 
+    if (hasAccess) {
+      blockCard.innerHTML += `<p class="card-description">Доступ открыт!</p>`;
+    } else {
+      const startButton = document.createElement('button');
+      startButton.className = 'btn btn-primary';
+      startButton.textContent = 'Начать';
+      startButton.onclick = async function() {
+        showConfirmAvvaModal(price, reward, taskBlock.blockId);
+      };
+      blockCard.appendChild(startButton);
+    }
+
     tasksContainer.appendChild(blockCard);
   });
 }
