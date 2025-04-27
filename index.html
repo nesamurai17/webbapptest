@@ -255,19 +255,20 @@
   </div>
 </div>
 
+<!-- Модальное окно подтверждения -->
 <div id="confirmAvvaModal" class="modal">
   <div class="modal-content">
     <h3 class="modal-title">
-      <i class="fas fa-coins"></i>
-      Подтверждение
+      <i class="fas fa-exclamation-triangle"></i>
+      Подтверждение списания
     </h3>
     <p id="confirmAvvaText" class="modal-text"></p>
     <div class="btn-group">
-      <button class="btn btn-secondary" onclick="closeModal('confirmAvvaModal')">
-        Отмена
+      <button class="btn btn-secondary" onclick="window.closeModal('confirmAvvaModal')">
+        <i class="fas fa-times"></i> Отмена
       </button>
-      <button id="confirmAvvaButton" class="btn btn-primary">
-        Подтвердить
+      <button id="confirmAvvaBtn" class="btn btn-primary">
+        <i class="fas fa-check"></i> Подтвердить
       </button>
     </div>
   </div>

@@ -6,6 +6,32 @@ const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+
+// Глобальные функции
+window.showConfirmAvvaModal = function(avvaCost, reward) {
+  document.getElementById("avvaCost").textContent = avvaCost;
+  document.getElementById("confirmAvvaText").innerHTML = `
+    Вы подтверждаете списание <strong>${avvaCost} AVVA</strong>?<br><br>
+    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
+  `;
+  
+  const confirmBtn = document.getElementById("confirmAvvaBtn");
+  confirmBtn.onclick = function() {
+    startTask(avvaCost);
+    window.closeModal('confirmAvvaModal');
+  };
+  
+  document.getElementById("confirmAvvaModal").classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+};
+
+window.closeModal = function(modalId) {
+  document.getElementById(modalId).classList.remove('active');
+  tg.HapticFeedback.impactOccurred('light');
+};
+
+
+
 const appState = {
   energy: 0,
   balance: 0,
@@ -199,6 +225,15 @@ function renderTasks() {
 
   tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
+  const startButton = document.createElement('button');
+  startButton.className = 'btn btn-primary';
+  startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
+  
+  // Новый обработчик с делегированием
+  startButton.onclick = function() {
+    window.showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
+  };
+
   appState.tasks.forEach((taskBlock, blockIndex) => {
     // Проверяем, есть ли невыполненные задания
     const hasUncompletedTasks = taskBlock.tasks.some(task => !task.completed);
@@ -210,6 +245,15 @@ function renderTasks() {
 
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
+
+
+
+    
+
+
+
+    
+
     
     blockCard.innerHTML = `
       <div class="card-title">
