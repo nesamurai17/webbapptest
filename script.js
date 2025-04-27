@@ -200,8 +200,13 @@ function renderTasks() {
   tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
-    const allCompleted = taskBlock.tasks.every(task => task.completed === 1);
-    const anyAccess = taskBlock.tasks.some(task => task.access === 1);
+    // Проверяем, есть ли невыполненные задания
+    const hasUncompletedTasks = taskBlock.tasks.some(task => !task.completed);
+    
+    // Если ВСЕ задания выполнены - пропускаем блок
+    if (!hasUncompletedTasks) return;
+
+    const anyAccess = taskBlock.tasks.some(task => task.access);
 
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
@@ -209,52 +214,47 @@ function renderTasks() {
     blockCard.innerHTML = `
       <div class="card-title">
         <i class="fas fa-star"></i>
-        Блок заданий #${blockIndex + 1}
+        Блок #${blockIndex + 1}
       </div>
       <div class="badge badge-primary">
         <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} AVVA
       </div>
-      <div class="badge ${allCompleted ? 'badge-premium' : 'badge-primary'}" style="margin-top: 0.5rem;">
+      <div class="badge badge-premium" style="margin-top: 0.5rem;">
         <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
-        ${allCompleted ? ' (получено)' : ''}
       </div>
-      <p class="card-description">
-        ${allCompleted ? 'Все задания выполнены!' : anyAccess ? 'Доступ открыт' : 'Доступ закрыт'}
-      </p>
       <div class="task-steps">
     `;
 
     const taskSteps = blockCard.querySelector('.task-steps');
     taskBlock.tasks.forEach((task, taskIndex) => {
-      const taskStep = document.createElement('div');
-      taskStep.className = `task-step ${task.completed ? 'completed' : ''}`;
-      taskStep.innerHTML = `
-        <div class="step-number">${taskIndex + 1}</div>
-        <div class="step-content">
-          <div class="step-title">${task.name || `Шаг ${taskIndex + 1}`}</div>
-          <div class="step-description">${task.text || 'Описание задания'}</div>
-          ${task.completed ? '<div class="step-completed"><i class="fas fa-check"></i> Выполнено</div>' : ''}
-        </div>
-      `;
-      taskSteps.appendChild(taskStep);
+      if (!task.completed) { // Показываем только невыполненные
+        const taskStep = document.createElement('div');
+        taskStep.className = 'task-step';
+        taskStep.innerHTML = `
+          <div class="step-number">${taskIndex + 1}</div>
+          <div class="step-content">
+            <div class="step-title">${task.name}</div>
+            <div class="step-description">${task.text}</div>
+          </div>
+        `;
+        taskSteps.appendChild(taskStep);
+      }
     });
 
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
-    startButton.disabled = allCompleted || !anyAccess;
-    startButton.innerHTML = allCompleted 
-      ? '<i class="fas fa-check"></i> Завершено'
-      : '<i class="fas fa-play"></i> Начать';
+    startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
     
-    if (!allCompleted && anyAccess) {
-      startButton.onclick = () => showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
-    }
+    // Обработчик с подтверждением списания
+    startButton.addEventListener('click', () => {
+      tg.HapticFeedback.impactOccurred('light');
+      showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
+    });
     
     blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
   });
 }
-
 async function loadTeams() {
   try {
     const { data, error } = await supabase
@@ -536,6 +536,26 @@ async function checkPermissions() {
     console.error("Permission check failed:", e);
     return false;
   }
+}
+
+function showConfirmAvvaModal(avvaCost, reward) {
+  // Заполняем модальное окно
+  document.getElementById("avvaCost").textContent = avvaCost;
+  document.getElementById("confirmAvvaText").innerHTML = `
+    Списание <strong>${avvaCost} AVVA</strong> для начала задания.<br>
+    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
+  `;
+  
+  // Настраиваем кнопку подтверждения
+  const confirmBtn = document.getElementById("confirmAvvaButton");
+  confirmBtn.onclick = async () => {
+    tg.HapticFeedback.impactOccurred('heavy');
+    await startTask(avvaCost); // Ваша функция списания
+    closeModal('confirmAvvaModal');
+  };
+  
+  // Показываем окно
+  document.getElementById("confirmAvvaModal").classList.add('active');
 }
 
 async function initApp() {
