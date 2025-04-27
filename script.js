@@ -7,7 +7,6 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 const appState = {
-  energy: 0,
   balance: 0,
   userId: tg.initDataUnsafe?.user?.id || null,
   currentTask: null,
@@ -22,8 +21,6 @@ const appState = {
 };
 
 function updateUI() {
-  document.getElementById("energy-bar").style.width = `${appState.energy}%`;
-  document.getElementById("energy-percent").textContent = `${appState.energy}%`;
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
   
   if (tg.initDataUnsafe?.user) {
@@ -171,7 +168,7 @@ function renderTasks() {
         ${blockName}
       </div>
       <div class="badge badge-primary">
-        <i class="fas fa-bolt"></i> Стоимость: ${price} AVVA
+        <i class="fas fa-coins"></i> Стоимость: ${price} AVVA
       </div>
       <div class="badge badge-premium" style="margin-top: 0.5rem;">
         <i class="fas fa-gem"></i> Награда: ${reward} очков
@@ -258,37 +255,9 @@ function renderTeams() {
   });
 }
 
-async function updateEnergyInDB(newEnergy) {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({ energy: newEnergy })
-      .eq('user_id', appState.userId);
-
-    if (error) throw error;
-    return true;
-  } catch (error) {
-    console.error("Ошибка обновления энергии:", error);
-    tg.showAlert("Ошибка сохранения энергии");
-    return false;
-  }
-}
-
 function showTaskDetails(task) {
   appState.currentTask = task;
   switchTab('task-details');
-}
-
-function showEnergyModal(requiredEnergy) {
-  tg.HapticFeedback.impactOccurred('light');
-  
-  if (appState.energy < requiredEnergy) {
-    document.getElementById("requiredEnergyText").textContent = 
-      `Требуется ${requiredEnergy}% энергии. Пополнить сейчас?`;
-    document.getElementById("energyModal").classList.add('active');
-  } else {
-    startTask(requiredEnergy);
-  }
 }
 
 function showConfirmAvvaModal(avvaCost, reward) {
@@ -334,12 +303,11 @@ async function loadUserData() {
   try {
     const { data } = await supabase
       .from('users')
-      .select('energy, cash')
+      .select('cash')
       .eq('user_id', appState.userId)
       .single();
 
     if (data) {
-      appState.energy = data.energy;
       appState.balance = data.cash;
       updateUI();
     }
@@ -415,21 +383,14 @@ async function startTask(avvaCost) {
     return;
   }
 
-  if (appState.energy < avvaCost) {
-    tg.showAlert("Недостаточно энергии");
-    return;
-  }
-
   try {
     appState.balance -= avvaCost;
-    appState.energy -= avvaCost;
     updateUI();
 
     const { error } = await supabase
       .from('users')
       .update({ 
-        cash: appState.balance,
-        energy: appState.energy 
+        cash: appState.balance
       })
       .eq('user_id', appState.userId);
 
@@ -445,7 +406,6 @@ async function startTask(avvaCost) {
   } catch (error) {
     console.error("Ошибка:", error);
     appState.balance += avvaCost;
-    appState.energy += avvaCost;
     updateUI();
     tg.showAlert("Ошибка при начале задания");
   }
@@ -461,7 +421,6 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
-    window.showEnergyModal = showEnergyModal;
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;

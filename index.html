@@ -27,14 +27,6 @@
       </div>
     </div>
 
-    <div class="energy-container">
-      <div class="energy-wrapper">
-        <div class="energy-progress" id="energy-bar">
-          <span id="energy-percent">0%</span>
-        </div>
-      </div>
-    </div>
-
     <div class="card">
       <div class="card-title">
         <i class="fas fa-share-alt"></i>
@@ -196,27 +188,8 @@
         <button class="btn btn-secondary" onclick="switchTab('home')">
           <i class="fas fa-arrow-left"></i> Назад
         </button>
-        <button class="btn btn-primary" onclick="showEnergyModal(15)">
+        <button class="btn btn-primary" onclick="showConfirmAvvaModal(15, 30)">
           <i class="fas fa-play"></i> Начать
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Energy Modal -->
-  <div id="energyModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">
-        <i class="fas fa-bolt"></i>
-        Недостаточно энергии
-      </h3>
-      <p id="requiredEnergyText" class="modal-text"></p>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="closeModal('energyModal')">
-          Отмена
-        </button>
-        <button class="btn btn-primary" onclick="window.Telegram.WebApp.close()">
-          <i class="fas fa-coins"></i> Пополнить
         </button>
       </div>
     </div>

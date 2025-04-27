@@ -99,34 +99,6 @@ body {
   color: var(--warning);
 }
 
-/* Energy progress */
-.energy-container {
-  margin: 1.5rem 0;
-  padding: 0 0.5rem;
-}
-
-.energy-wrapper {
-  background: rgba(0, 0, 0, 0.2);
-  height: 40px;
-  border-radius: 20px;
-  overflow: hidden;
-  position: relative;
-}
-
-.energy-progress {
-  height: 100%;
-  background: var(--gradient);
-  width: 30%;
-  transition: width 0.5s ease;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 1rem;
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
 /* Cards */
 .card {
   background: var(--surface);
@@ -423,10 +395,6 @@ body {
   margin-bottom: 1.5rem;
 }
 
-
-
-
-/* ВСЕ НОВОЕ ЧТО ДОБАВЛЯЮ */
 /* Стили для страницы рейтинга */
 .rating-columns {
   display: flex;
@@ -504,7 +472,6 @@ body {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
-
 
 /* Стили для списка заданий */
 .task-list {
@@ -606,32 +573,4 @@ body {
 #confirmAvvaModal strong {
   color: var(--primary);
   font-weight: 600;
-}
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s;
-}
-
-.modal.active {
-  opacity: 1;
-  pointer-events: all;
-}
-
-.modal-content {
-  background: var(--surface);
-  padding: 1.5rem;
-  border-radius: 1rem;
-  width: 90%;
-  max-width: 400px;
 }
