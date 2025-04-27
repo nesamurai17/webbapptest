@@ -200,22 +200,53 @@ function renderTasks() {
   tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
-    const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
-    if (!hasUncompletedTasks) return;
-
+    const allCompleted = taskBlock.tasks.every(task => task.completed === 1);
     const anyAccess = taskBlock.tasks.some(task => task.access === 1);
 
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
     
-    // ... (остальной код создания карточки)
+    blockCard.innerHTML = `
+      <div class="card-title">
+        <i class="fas fa-star"></i>
+        Блок заданий #${blockIndex + 1}
+      </div>
+      <div class="badge badge-primary">
+        <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} AVVA
+      </div>
+      <div class="badge ${allCompleted ? 'badge-premium' : 'badge-primary'}" style="margin-top: 0.5rem;">
+        <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
+        ${allCompleted ? ' (получено)' : ''}
+      </div>
+      <p class="card-description">
+        ${allCompleted ? 'Все задания выполнены!' : anyAccess ? 'Доступ открыт' : 'Доступ закрыт'}
+      </p>
+      <div class="task-steps">
+    `;
+
+    const taskSteps = blockCard.querySelector('.task-steps');
+    taskBlock.tasks.forEach((task, taskIndex) => {
+      const taskStep = document.createElement('div');
+      taskStep.className = `task-step ${task.completed ? 'completed' : ''}`;
+      taskStep.innerHTML = `
+        <div class="step-number">${taskIndex + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${task.name || `Шаг ${taskIndex + 1}`}</div>
+          <div class="step-description">${task.text || 'Описание задания'}</div>
+          ${task.completed ? '<div class="step-completed"><i class="fas fa-check"></i> Выполнено</div>' : ''}
+        </div>
+      `;
+      taskSteps.appendChild(taskStep);
+    });
 
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
-    startButton.disabled = !anyAccess;
-    startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
+    startButton.disabled = allCompleted || !anyAccess;
+    startButton.innerHTML = allCompleted 
+      ? '<i class="fas fa-check"></i> Завершено'
+      : '<i class="fas fa-play"></i> Начать';
     
-    if (anyAccess) {
+    if (!allCompleted && anyAccess) {
       startButton.onclick = () => showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
     }
     
@@ -485,8 +516,6 @@ async function startTask(avvaCost) {
     tg.showAlert("Ошибка списания AVVA");
   }
 }
-
-
 
 async function checkPermissions() {
   try {
