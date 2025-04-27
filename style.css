@@ -504,3 +504,87 @@ body {
   color: var(--text-secondary);
   font-size: 0.9rem;
 }
+
+
+/* Стили для списка заданий */
+.task-list {
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-number {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.task-reward {
+  color: var(--warning);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Стили для карточек заданий */
+.task-card .badge {
+  margin-bottom: 1rem;
+}
+
+.task-card .task-steps {
+  margin: 1.5rem 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.task-card .task-step {
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+}
+
+.task-card .task-step:last-child {
+  margin-bottom: 0;
+}
+
+.task-card .step-number {
+  background: var(--primary);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  margin-right: 1rem;
+}
+
+.task-card .step-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.task-card .step-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}

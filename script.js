@@ -12,6 +12,7 @@ const appState = {
   userId: tg.initDataUnsafe?.user?.id || null,
   currentTask: null,
   teams: [],
+  tasks: [], // Добавляем массив для хранения заданий
   ratings: {
     cash: [],
     tasks: [],
@@ -34,6 +35,180 @@ function updateUI() {
       document.getElementById("user-avatar").src = user.photo_url;
     }
   }
+}
+
+async function createUserTasksTable() {
+  if (!appState.userId) return;
+  
+  const tableName = `tasks_of_${appState.userId}`;
+  
+  try {
+    // Проверяем существование таблицы
+    const { data: tables, error } = await supabase
+      .from('pg_tables')
+      .select('tablename')
+      .eq('tablename', tableName);
+    
+    if (error) throw error;
+    
+    // Если таблицы нет - создаём
+    if (tables.length === 0) {
+      const { error: createError } = await supabase.rpc('create_user_tasks_table', {
+        table_name: tableName
+      });
+      
+      if (createError) throw createError;
+      console.log(`Таблица ${tableName} создана`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Ошибка создания таблицы:", error);
+    tg.showAlert("Ошибка инициализации заданий");
+    return false;
+  }
+}
+
+async function syncUserTasks() {
+  if (!appState.userId) return;
+  
+  const tableName = `tasks_of_${appState.userId}`;
+  
+  try {
+    // Получаем все задания из основной таблицы
+    const { data: allTasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('task_id');
+    
+    if (tasksError) throw tasksError;
+    
+    // Получаем задания пользователя
+    const { data: userTasks, error: userTasksError } = await supabase
+      .from(tableName)
+      .select('task');
+    
+    if (userTasksError) throw userTasksError;
+    
+    // Находим задания, которых нет у пользователя
+    const existingTasks = userTasks.map(t => t.task);
+    const tasksToAdd = allTasks
+      .filter(t => !existingTasks.includes(t.task_id))
+      .map(t => ({ 
+        task: t.task_id,
+        access: 0,
+        completed: 0
+      }));
+    
+    // Добавляем недостающие задания
+    if (tasksToAdd.length > 0) {
+      const { error: insertError } = await supabase
+        .from(tableName)
+        .insert(tasksToAdd);
+      
+      if (insertError) throw insertError;
+      console.log(`Добавлено ${tasksToAdd.length} заданий для пользователя`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Ошибка синхронизации заданий:", error);
+    return false;
+  }
+}
+
+async function loadTasks() {
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('task_id', { ascending: true });
+
+    if (error) throw error;
+    
+    if (data) {
+      // Группируем задания по блокам и собираем общую информацию
+      const groupedTasks = {};
+      data.forEach(task => {
+        const [blockId] = task.task_id.split('-');
+        if (!groupedTasks[blockId]) {
+          groupedTasks[blockId] = {
+            price: task.price, // Стоимость блока
+            reward: task.reward, // Награда за блок
+            tasks: [] // Задания в блоке
+          };
+        }
+        // Добавляем все поля задания, включая text
+        groupedTasks[blockId].tasks.push({
+          name: task.name,
+          text: task.text,
+          // Можно добавить другие нужные поля
+        });
+      });
+      
+      appState.tasks = Object.values(groupedTasks);
+      renderTasks();
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки заданий:", error);
+    tg.showAlert("Ошибка загрузки списка заданий");
+  }
+}
+
+function renderTasks() {
+  const tasksContainer = document.getElementById('tasks-page');
+  if (!tasksContainer) return;
+
+  // Очищаем существующие карточки (кроме header)
+  const existingCards = tasksContainer.querySelectorAll('.task-card');
+  existingCards.forEach(card => card.remove());
+
+  // Создаем карточки для каждого блока заданий
+  appState.tasks.forEach((taskBlock, blockIndex) => {
+    const blockCard = document.createElement('div');
+    blockCard.className = 'card task-card';
+    
+    // Заголовок блока
+    blockCard.innerHTML = `
+      <div class="card-title">
+        <i class="fas fa-star"></i>
+        Блок заданий #${blockIndex + 1}
+      </div>
+      <div class="badge badge-primary">
+        <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} энергии
+      </div>
+      <div class="badge badge-premium" style="margin-top: 0.5rem;">
+        <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
+      </div>
+      <p class="card-description">
+        Выполните все задания блока для получения награды
+      </p>
+      <div class="task-steps">
+    `;
+
+    // Добавляем задания в блок
+    const taskSteps = blockCard.querySelector('.task-steps');
+    taskBlock.tasks.forEach((task, taskIndex) => {
+      const taskStep = document.createElement('div');
+      taskStep.className = 'task-step';
+      taskStep.innerHTML = `
+        <div class="step-number">${taskIndex + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${task.name || `Шаг ${taskIndex + 1}`}</div>
+          <div class="step-description">${task.text || 'Описание задания'}</div>
+        </div>
+      `;
+      taskSteps.appendChild(taskStep);
+    });
+
+    // Кнопка начала выполнения
+    const startButton = document.createElement('button');
+    startButton.className = 'btn btn-primary';
+    startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
+    startButton.onclick = () => showEnergyModal(taskBlock.price);
+    
+    blockCard.appendChild(startButton);
+    tasksContainer.appendChild(blockCard);
+  });
 }
 
 async function loadTeams() {
@@ -162,7 +337,6 @@ function switchTab(tabName) {
   
   // Show selected page
   document.getElementById(`${tabName}-page`).classList.add('active');
-  updateUI();
 }
 
 async function loadUserData() {
@@ -255,11 +429,18 @@ function renderAllRatings() {
 
 
 
-function initApp() {
+async function initApp() {
   updateUI();
-  loadUserData();
-  loadTeams();
-  loadAllRatings(); 
+  await loadUserData();
+  
+  // Инициализация таблицы заданий пользователя
+  await createUserTasksTable();
+  await syncUserTasks();
+  
+  await loadTeams();
+  await loadTasks();
+  await loadAllRatings();
+  
   switchTab('home');
 
   // Set up global functions
