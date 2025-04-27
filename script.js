@@ -319,16 +319,8 @@ function renderTasks() {
       const startButton = document.createElement('button');
       startButton.className = 'btn btn-primary';
       startButton.textContent = 'Начать';
-      startButton.id = `start-button-${blockIndex}`; // Добавляем ID для кнопки
-      startButton.onclick = async function() {
-        await startTask(price, reward, taskBlock.blockId);
-        // После начала задания скрываем только кнопку
-        this.style.display = 'none';
-        // Добавляем бейдж о доступности
-        const accessBadge = document.createElement('div');
-        accessBadge.className = 'badge badge-success';
-        accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
-        blockCard.appendChild(accessBadge);
+      startButton.onclick = function() {
+        showConfirmAvvaModal(price, reward, taskBlock.blockId, startButton, blockCard);
       };
       blockCard.appendChild(startButton);
     } else {
@@ -343,6 +335,33 @@ function renderTasks() {
   });
 }
 
+function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
+  const modal = document.getElementById('confirmAvvaModal');
+  const textElement = document.getElementById('confirmAvvaText');
+  const button = document.getElementById('confirmAvvaBtn');
+  
+  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} очков</strong>`;
+  
+  button.onclick = async function() {
+    try {
+      await startTask(price, blockId);
+      // После успешного подтверждения скрываем кнопку и показываем бейдж
+      startButton.style.display = 'none';
+      const accessBadge = document.createElement('div');
+      accessBadge.className = 'badge badge-success';
+      accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
+      blockCard.appendChild(accessBadge);
+      closeModal('confirmAvvaModal');
+    } catch (error) {
+      console.error("Ошибка при начале задания:", error);
+      tg.showAlert("Ошибка при начале задания");
+      closeModal('confirmAvvaModal');
+    }
+  };
+  
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
 
 async function loadTeams() {
   try {
