@@ -319,12 +319,20 @@ function renderTasks() {
       const startButton = document.createElement('button');
       startButton.className = 'btn btn-primary';
       startButton.textContent = 'Начать';
+      startButton.id = `start-button-${blockIndex}`; // Добавляем ID для кнопки
       startButton.onclick = async function() {
-        showConfirmAvvaModal(price, reward, taskBlock.blockId);
+        await startTask(price, reward, taskBlock.blockId);
+        // После начала задания скрываем только кнопку
+        this.style.display = 'none';
+        // Добавляем бейдж о доступности
+        const accessBadge = document.createElement('div');
+        accessBadge.className = 'badge badge-success';
+        accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
+        blockCard.appendChild(accessBadge);
       };
       blockCard.appendChild(startButton);
     } else {
-      // Можно добавить сообщение о доступности (опционально)
+      // Добавляем сообщение о доступности
       const accessBadge = document.createElement('div');
       accessBadge.className = 'badge badge-success';
       accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
