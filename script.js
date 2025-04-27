@@ -37,6 +37,62 @@ function updateUI() {
   }
 }
 
+async function createUserTableWithFallbacks(userId) {
+  const tableName = `tasks_of_${userId}`;
+  console.log(`Attempting to create table: ${tableName}`);
+
+  // 1. Попробуем стандартный метод через INSERT
+  try {
+    const { error: insertError } = await supabase
+      .from(tableName)
+      .insert([{ 
+        task: 'init_record', 
+        access: 0, 
+        completed: 0 
+      }], { returning: 'minimal' });
+
+    if (!insertError) {
+      console.log("Table created via INSERT method");
+      await supabase.from(tableName).delete().eq('task', 'init_record');
+      return true;
+    }
+
+    // 2. Если не получилось, пробуем RPC
+    const { error: rpcError } = await supabase.rpc('create_user_tasks_table', {
+      table_name: tableName
+    });
+
+    if (!rpcError) {
+      console.log("Table created via RPC");
+      return true;
+    }
+
+    // 3. Последний вариант - HTTP запрос напрямую
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_user_tasks_table`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      },
+      body: JSON.stringify({ table_name: tableName })
+    });
+
+    if (response.ok) {
+      console.log("Table created via direct HTTP");
+      return true;
+    }
+
+    throw new Error("All creation methods failed");
+
+  } catch (error) {
+    console.error("Table creation error:", error);
+    tg.showAlert("Не удалось создать таблицу. Попробуйте позже.");
+    return false;
+  }
+}
+
+
 async function createUserTasksTable() {
   if (!appState.userId) {
     console.error("User ID not available");
@@ -105,16 +161,26 @@ async function alternativeTableCreation(tableName) {
 }
 
 async function initUserTasks() {
-  try {
-    // 1. Создаем таблицу
-    const tableCreated = await createUserTasksTable();
-    if (!tableCreated) return false;
+  if (!appState.userId) {
+    console.error("User ID not available");
+    return false;
+  }
 
-    // 2. Синхронизируем задания
-    await syncUserTasks();
-    return true;
+  try {
+    // Проверяем существование таблицы
+    const { data, error } = await supabase
+      .from(`tasks_of_${appState.userId}`)
+      .select('*')
+      .limit(1);
+
+    // Если таблица существует
+    if (!error) return true;
+
+    // Если таблицы нет - создаем
+    return await createUserTableWithFallbacks(appState.userId);
+    
   } catch (error) {
-    console.error("Init tasks error:", error);
+    console.error("Init error:", error);
     return false;
   }
 }
@@ -508,12 +574,35 @@ function renderAllRatings() {
 
 
 
+async function checkPermissions() {
+  try {
+    const testTable = `temp_table_${Date.now()}`;
+    const { error } = await supabase.rpc('create_user_tasks_table', {
+      table_name: testTable
+    });
+    
+    if (error) {
+      console.error("Permission error:", error);
+      tg.showAlert("Недостаточно прав для создания таблиц");
+      return false;
+    }
+    
+    await supabase.rpc('drop_table', { table_name: testTable });
+    return true;
+  } catch (e) {
+    console.error("Permission check failed:", e);
+    return false;
+  }
+}
 
 async function initApp() {
   try {
+
+
+
     updateUI();
     await loadUserData();
-    
+    await checkPermissions();
     // Добавляем задержку для инициализации
     await new Promise(resolve => setTimeout(resolve, 500));
     
