@@ -12,7 +12,8 @@ const appState = {
   userId: tg.initDataUnsafe?.user?.id || null,
   currentTask: null,
   teams: [],
-  tasks: [], // Добавляем массив для хранения заданий
+  tasks: [],
+  userTasks: [], // Хранит задания конкретного пользователя
   ratings: {
     cash: [],
     tasks: [],
@@ -37,128 +38,6 @@ function updateUI() {
   }
 }
 
-async function createUserTableWithFallbacks(userId) {
-  const tableName = `tasks_of_${userId}`;
-  console.log(`Attempting to create table: ${tableName}`);
-
-  // 1. Попробуем стандартный метод через INSERT
-  try {
-    const { error: insertError } = await supabase
-      .from(tableName)
-      .insert([{ 
-        task: 'init_record', 
-        access: 0, 
-        completed: 0 
-      }], { returning: 'minimal' });
-
-    if (!insertError) {
-      console.log("Table created via INSERT method");
-      await supabase.from(tableName).delete().eq('task', 'init_record');
-      return true;
-    }
-
-    // 2. Если не получилось, пробуем RPC
-    const { error: rpcError } = await supabase.rpc('create_user_tasks_table', {
-      table_name: tableName
-    });
-
-    if (!rpcError) {
-      console.log("Table created via RPC");
-      return true;
-    }
-
-    // 3. Последний вариант - HTTP запрос напрямую
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/create_user_tasks_table`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`
-      },
-      body: JSON.stringify({ table_name: tableName })
-    });
-
-    if (response.ok) {
-      console.log("Table created via direct HTTP");
-      return true;
-    }
-
-    throw new Error("All creation methods failed");
-
-  } catch (error) {
-    console.error("Table creation error:", error);
-    tg.showAlert("Не удалось создать таблицу. Попробуйте позже.");
-    return false;
-  }
-}
-
-
-async function createUserTasksTable() {
-  if (!appState.userId) {
-    console.error("User ID not available");
-    return false;
-  }
-
-  const tableName = `tasks_of_${appState.userId}`;
-  console.log(`Creating table: ${tableName}`);
-
-  try {
-    // 1. Пытаемся создать таблицу через raw SQL запрос
-    const { error: createError } = await supabase.rpc('create_raw_table', {
-      table_name: tableName
-    });
-
-    // 2. Если не получилось через RPC, пробуем альтернативный метод
-    if (createError) {
-      console.log("Trying alternative table creation method...");
-      await alternativeTableCreation(tableName);
-    }
-
-    // 3. Проверяем, что таблица создана
-    const { error: checkError } = await supabase
-      .from(tableName)
-      .select('*')
-      .limit(1);
-
-    if (checkError) {
-      throw new Error(`Table verification failed: ${checkError.message}`);
-    }
-
-    console.log(`Table ${tableName} created successfully`);
-    return true;
-  } catch (error) {
-    console.error("Table creation failed:", error);
-    tg.showAlert("Ошибка создания таблицы заданий");
-    return false;
-  }
-}
-
-async function alternativeTableCreation(tableName) {
-  // Метод "обходного пути" для создания таблицы
-  try {
-    // Пытаемся создать таблицу через insert + delete
-    const { error: insertError } = await supabase
-      .from(tableName)
-      .insert([{ 
-        task: 'temp_task', 
-        access: 0, 
-        completed: 0 
-      }]);
-
-    if (insertError) throw insertError;
-
-    // Если insert прошел успешно, значит таблица создана
-    // Удаляем временные данные
-    await supabase
-      .from(tableName)
-      .delete()
-      .eq('task', 'temp_task');
-
-  } catch (error) {
-    console.error("Alternative creation failed:", error);
-    throw new Error("Не удалось создать таблицу альтернативным методом");
-  }
-}
 
 async function initUserTasks() {
   if (!appState.userId) {
@@ -167,127 +46,100 @@ async function initUserTasks() {
   }
 
   try {
-    // Проверяем существование таблицы
-    const { data, error } = await supabase
-      .from(`tasks_of_${appState.userId}`)
+    // Проверяем существование основной таблицы tasks
+    const { error: tasksError } = await supabase
+      .from('tasks')
       .select('*')
       .limit(1);
+    
+    if (tasksError) throw new Error("Таблица tasks не найдена");
 
-    // Если таблица существует
-    if (!error) return true;
-
-    // Если таблицы нет - создаем
-    return await createUserTableWithFallbacks(appState.userId);
+    // Синхронизируем задания пользователя
+    await syncUserTasks();
+    return true;
     
   } catch (error) {
-    console.error("Init error:", error);
+    console.error("Ошибка инициализации заданий:", error);
+    tg.showAlert("Ошибка загрузки заданий");
     return false;
   }
 }
 
-async function testTableCreation() {
-  const testTable = `test_table_${Date.now()}`;
-  console.log(`Testing table creation: ${testTable}`);
-  
-  try {
-    // Тестируем основной метод
-    const { error: rpcError } = await supabase.rpc('create_raw_table', {
-      table_name: testTable
-    });
-    
-    if (!rpcError) {
-      console.log("RPC method works!");
-      return;
-    }
-    
-    // Тестируем альтернативный метод
-    await supabase
-      .from(testTable)
-      .insert([{ task: 'test', access: 0, completed: 0 }]);
-    
-    console.log("Alternative method works!");
-    
-    // Убираем тестовую таблицу
-    await supabase.rpc('drop_table', { table_name: testTable });
-    
-  } catch (error) {
-    console.error("All creation methods failed:", error);
-    tg.showAlert("Все методы создания таблиц не сработали");
-  }
-}
-
-// Вызовите эту функцию где-нибудь в initApp()
-
 async function syncUserTasks() {
-  const tableName = `user_tasks_${appState.userId}`;
-  
   try {
-    // 1. Получаем все задания
+    // 1. Получаем все задания из основной таблицы
     const { data: allTasks, error: tasksError } = await supabase
       .from('tasks')
-      .select('id, task_id');
+      .select('*');
     
     if (tasksError) throw tasksError;
 
     // 2. Получаем текущие задания пользователя
-    const { data: userTasks, error: userError } = await supabase
-      .from(tableName)
-      .select('task_id');
+    const { data: userTasks, error: userTasksError } = await supabase
+      .from('user_tasks')
+      .select('*')
+      .eq('user_id', appState.userId);
     
-    if (userError) throw userError;
+    if (userTasksError) throw userTasksError;
 
-    // 3. Находим новые задания
-    const existingIds = userTasks.map(t => t.task_id);
-    const newTasks = allTasks
-      .filter(t => !existingIds.includes(t.task_id))
-      .map(t => ({
-        task_id: t.task_id,
+    // 3. Находим новые задания для добавления
+    const existingTaskIds = userTasks.map(t => t.task_id);
+    const tasksToAdd = allTasks
+      .filter(task => !existingTaskIds.includes(task.task_id))
+      .map(task => ({
+        user_id: appState.userId,
+        task_id: task.task_id,
         access: 0,
         completed: 0
       }));
 
-    // 4. Добавляем новые
-    if (newTasks.length > 0) {
+    // 4. Добавляем новые задания
+    if (tasksToAdd.length > 0) {
       const { error: insertError } = await supabase
-        .from(tableName)
-        .insert(newTasks);
+        .from('user_tasks')
+        .insert(tasksToAdd);
       
       if (insertError) throw insertError;
     }
-    
+
+    // Сохраняем задания пользователя
+    appState.userTasks = userTasks.concat(tasksToAdd);
     return true;
+    
   } catch (error) {
-    console.error("Sync error:", error);
+    console.error("Ошибка синхронизации:", error);
     throw error;
   }
 }
 
 async function loadTasks() {
   try {
-    const { data, error } = await supabase
+    const { data: allTasks, error } = await supabase
       .from('tasks')
       .select('*')
       .order('task_id', { ascending: true });
 
     if (error) throw error;
     
-    if (data) {
-      // Группируем задания по блокам и собираем общую информацию
+    if (allTasks) {
+      // Группируем задания по блокам
       const groupedTasks = {};
-      data.forEach(task => {
+      allTasks.forEach(task => {
         const [blockId] = task.task_id.split('-');
         if (!groupedTasks[blockId]) {
           groupedTasks[blockId] = {
-            price: task.price, // Стоимость блока
-            reward: task.reward, // Награда за блок
-            tasks: [] // Задания в блоке
+            price: task.price,
+            reward: task.reward,
+            tasks: []
           };
         }
-        // Добавляем все поля задания, включая text
+        
+        // Добавляем статус из userTasks
+        const userTask = appState.userTasks.find(t => t.task_id === task.task_id);
         groupedTasks[blockId].tasks.push({
-          name: task.name,
-          text: task.text,
-          // Можно добавить другие нужные поля
+          ...task,
+          access: userTask?.access || 0,
+          completed: userTask?.completed || 0
         });
       });
       
@@ -300,20 +152,60 @@ async function loadTasks() {
   }
 }
 
+async function loadTasks() {
+  try {
+    const { data: allTasks, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('task_id', { ascending: true });
+
+    if (error) throw error;
+    
+    if (allTasks) {
+      // Группируем задания по блокам
+      const groupedTasks = {};
+      allTasks.forEach(task => {
+        const [blockId] = task.task_id.split('-');
+        if (!groupedTasks[blockId]) {
+          groupedTasks[blockId] = {
+            price: task.price,
+            reward: task.reward,
+            tasks: []
+          };
+        }
+        
+        // Добавляем статус из userTasks
+        const userTask = appState.userTasks.find(t => t.task_id === task.task_id);
+        groupedTasks[blockId].tasks.push({
+          ...task,
+          access: userTask?.access || 0,
+          completed: userTask?.completed || 0
+        });
+      });
+      
+      appState.tasks = Object.values(groupedTasks);
+      renderTasks();
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки заданий:", error);
+    tg.showAlert("Ошибка загрузки списка заданий");
+  }
+}
+
+// Отрисовка заданий
 function renderTasks() {
   const tasksContainer = document.getElementById('tasks-page');
   if (!tasksContainer) return;
 
-  // Очищаем существующие карточки (кроме header)
-  const existingCards = tasksContainer.querySelectorAll('.task-card');
-  existingCards.forEach(card => card.remove());
+  tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
 
-  // Создаем карточки для каждого блока заданий
   appState.tasks.forEach((taskBlock, blockIndex) => {
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
     
-    // Заголовок блока
+    const allCompleted = taskBlock.tasks.every(t => t.completed);
+    const anyAccess = taskBlock.tasks.some(t => t.access);
+
     blockCard.innerHTML = `
       <div class="card-title">
         <i class="fas fa-star"></i>
@@ -322,41 +214,46 @@ function renderTasks() {
       <div class="badge badge-primary">
         <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} энергии
       </div>
-      <div class="badge badge-premium" style="margin-top: 0.5rem;">
+      <div class="badge ${allCompleted ? 'badge-premium' : 'badge-primary'}" style="margin-top: 0.5rem;">
         <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
+        ${allCompleted ? ' (получено)' : ''}
       </div>
       <p class="card-description">
-        Выполните все задания блока для получения награды
+        ${anyAccess ? 'Доступ открыт' : 'Доступ закрыт'}
       </p>
       <div class="task-steps">
     `;
 
-    // Добавляем задания в блок
     const taskSteps = blockCard.querySelector('.task-steps');
     taskBlock.tasks.forEach((task, taskIndex) => {
       const taskStep = document.createElement('div');
-      taskStep.className = 'task-step';
+      taskStep.className = `task-step ${task.completed ? 'completed' : ''}`;
       taskStep.innerHTML = `
         <div class="step-number">${taskIndex + 1}</div>
         <div class="step-content">
           <div class="step-title">${task.name || `Шаг ${taskIndex + 1}`}</div>
           <div class="step-description">${task.text || 'Описание задания'}</div>
+          ${task.completed ? '<div class="step-completed"><i class="fas fa-check"></i> Выполнено</div>' : ''}
         </div>
       `;
       taskSteps.appendChild(taskStep);
     });
 
-    // Кнопка начала выполнения
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
-    startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
-    startButton.onclick = () => showEnergyModal(taskBlock.price);
+    startButton.disabled = !anyAccess || allCompleted;
+    startButton.innerHTML = allCompleted 
+      ? '<i class="fas fa-check"></i> Завершено'
+      : '<i class="fas fa-play"></i> Начать';
+    
+    if (!allCompleted && anyAccess) {
+      startButton.onclick = () => showEnergyModal(taskBlock.price);
+    }
     
     blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
   });
 }
-
 async function loadTeams() {
   try {
     const { data, error } = await supabase
@@ -597,38 +494,24 @@ async function checkPermissions() {
 
 async function initApp() {
   try {
-
-
-
     updateUI();
     await loadUserData();
-    await checkPermissions();
-    // Добавляем задержку для инициализации
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Инициализация таблицы заданий
-    const tasksInitialized = await initUserTasks();
-    if (!tasksInitialized) {
-      throw new Error("Не удалось инициализировать задания");
-    }
-    
+    await initUserTasks();
     await loadTeams();
     await loadTasks();
     await loadAllRatings();
-    await testTableCreation();
-    
     switchTab('home');
-    
-    // Инициализация глобальных функций
+
+    // Глобальные функции
     window.showEnergyModal = showEnergyModal;
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
     window.showTaskDetails = showTaskDetails;
-    
+
   } catch (error) {
-    console.error("Ошибка инициализации приложения:", error);
-    tg.showAlert("Ошибка загрузки приложения: " + error.message);
+    console.error("Ошибка инициализации:", error);
+    tg.showAlert("Ошибка загрузки приложения");
   }
 }
 document.addEventListener('DOMContentLoaded', initApp);
