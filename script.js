@@ -37,72 +37,73 @@ function updateUI() {
   }
 }
 
-async function createUserTasksTable() {
+async function initUserTasks() {
   if (!appState.userId) {
     console.error("User ID not available");
     return false;
   }
 
   const tableName = `tasks_of_${appState.userId}`;
-  
+  console.log(`Attempting to init table: ${tableName}`);
+
   try {
-    // Сначала пробуем создать таблицу
-    const { error: createError } = await supabase.rpc('create_user_tasks_table', {
-      table_name: tableName
-    });
-    
-    if (createError) throw createError;
-    
-    // Затем синхронизируем задания
+    // Простая проверка существования таблицы
+    const { error: checkError } = await supabase
+      .from(tableName)
+      .select('*')
+      .limit(1);
+
+    // Если таблица не существует (код ошибки 42P01)
+    if (checkError && checkError.code === '42P01') {
+      console.log(`Table ${tableName} doesn't exist, creating...`);
+      
+      // Создаем таблицу через обычный запрос (без RPC)
+      const { error: createError } = await supabase
+        .from(tableName)
+        .insert([{ 
+          task: 'temp', 
+          access: 0, 
+          completed: 0 
+        }], { returning: 'minimal' });
+      
+      if (createError) throw createError;
+      
+      // Удаляем временную запись
+      await supabase
+        .from(tableName)
+        .delete()
+        .eq('task', 'temp');
+    }
+
+    // Синхронизируем задания
     await syncUserTasks(tableName);
     return true;
   } catch (error) {
     console.error("Ошибка инициализации заданий:", error);
-    
-    // Пробуем альтернативный метод, если RPC не работает
-    try {
-      await supabase
-        .from(tableName)
-        .select('*')
-        .limit(1);
-      
-      // Если запрос прошёл, значит таблица существует
-      await syncUserTasks(tableName);
-      return true;
-    } catch (fallbackError) {
-      console.error("Fallback method failed:", fallbackError);
-      tg.showAlert("Ошибка инициализации заданий");
-      return false;
-    }
+    tg.showAlert("Ошибка инициализации заданий: " + error.message);
+    return false;
   }
 }
 
 async function syncUserTasks(tableName) {
   try {
-    // Проверяем существование таблицы
-    const { data, error: checkError } = await supabase
-      .from(tableName)
-      .select('*')
-      .limit(1);
-    
-    if (checkError && checkError.code !== '42P01') throw checkError;
-    
-    // Получаем все задания
+    // Получаем все задания из основной таблицы
     const { data: allTasks, error: tasksError } = await supabase
       .from('tasks')
       .select('task_id');
-    
+
     if (tasksError) throw tasksError;
-    
-    // Получаем задания пользователя
+    if (!allTasks || allTasks.length === 0) return true;
+
+    // Получаем текущие задания пользователя
     const { data: userTasks, error: userTasksError } = await supabase
       .from(tableName)
       .select('task');
-    
+
     if (userTasksError) throw userTasksError;
-    
-    // Синхронизируем
-    const existingTasks = userTasks.map(t => t.task);
+
+    // Находим новые задания для добавления
+    const existingTasks = userTasks?.map(t => t.task) || [];
     const tasksToAdd = allTasks
       .filter(t => !existingTasks.includes(t.task_id))
       .map(t => ({
@@ -110,21 +111,23 @@ async function syncUserTasks(tableName) {
         access: 0,
         completed: 0
       }));
-    
+
     if (tasksToAdd.length > 0) {
       const { error: insertError } = await supabase
         .from(tableName)
         .insert(tasksToAdd);
-      
+
       if (insertError) throw insertError;
+      console.log(`Added ${tasksToAdd.length} tasks to ${tableName}`);
     }
-    
+
     return true;
   } catch (error) {
     console.error("Ошибка синхронизации заданий:", error);
     throw error;
   }
 }
+
 async function loadTasks() {
   try {
     const { data, error } = await supabase
@@ -439,25 +442,35 @@ function renderAllRatings() {
 
 
 async function initApp() {
-  updateUI();
-  await loadUserData();
-  
-  // Инициализация таблицы заданий пользователя
-  await createUserTasksTable();
-  await syncUserTasks();
-  
-  await loadTeams();
-  await loadTasks();
-  await loadAllRatings();
-  
-  switchTab('home');
-
-  // Set up global functions
-  window.showEnergyModal = showEnergyModal;
-  window.closeModal = closeModal;
-  window.switchTab = switchTab;
-  window.startTask = startTask;
-  window.showTaskDetails = showTaskDetails;
+  try {
+    updateUI();
+    await loadUserData();
+    
+    // Добавляем задержку для инициализации
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Инициализация таблицы заданий
+    const tasksInitialized = await initUserTasks();
+    if (!tasksInitialized) {
+      throw new Error("Не удалось инициализировать задания");
+    }
+    
+    await loadTeams();
+    await loadTasks();
+    await loadAllRatings();
+    
+    switchTab('home');
+    
+    // Инициализация глобальных функций
+    window.showEnergyModal = showEnergyModal;
+    window.closeModal = closeModal;
+    window.switchTab = switchTab;
+    window.startTask = startTask;
+    window.showTaskDetails = showTaskDetails;
+    
+  } catch (error) {
+    console.error("Ошибка инициализации приложения:", error);
+    tg.showAlert("Ошибка загрузки приложения: " + error.message);
+  }
 }
-
 document.addEventListener('DOMContentLoaded', initApp);
