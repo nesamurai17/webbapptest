@@ -53,7 +53,7 @@ async function initUserTasks() {
     
   } catch (error) {
     console.error("Ошибка инициализации заданий:", error);
-    tg.showAlert("Ошибка загрузки заданий");
+    showError("Ошибка загрузки заданий");
     return false;
   }
 }
@@ -197,7 +197,7 @@ async function loadTasks() {
 
   } catch (error) {
     console.error('[loadTasks] Критическая ошибка:', error);
-    tg.showAlert("Ошибка загрузки списка заданий");
+    showError("Ошибка загрузки списка заданий");
     
     // Создаем fallback данные для отображения
     appState.tasks = [{
@@ -300,10 +300,7 @@ async function completeTask(taskId, blockId) {
         
         if (balanceError) throw balanceError;
 
-        tg.showPopup({
-          title: "Поздравляем!",
-          message: `Вы выполнили все задания блока и получили ${block.reward} AVVA!`
-        });
+        showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
       }
 
       // Перезагружаем задания, чтобы скрыть выполненный блок
@@ -317,6 +314,30 @@ async function completeTask(taskId, blockId) {
   } catch (error) {
     console.error("Ошибка выполнения задания:", error);
     throw error;
+  }
+}
+
+async function completeTaskFromLink(event, taskId) {
+  event.preventDefault();
+  const url = event.target.getAttribute('href');
+  
+  try {
+    // Получаем blockId из taskId
+    const task = appState.tasks.flatMap(b => b.tasks).find(t => t.task_id === taskId);
+    if (!task) throw new Error('Task not found');
+    
+    const [blockId] = taskId.split('-');
+    
+    // Открываем ссылку в новом окне
+    if (url && url !== '#') {
+      window.open(url, '_blank');
+    }
+    
+    // Отмечаем задание выполненным
+    await completeTask(taskId, blockId);
+  } catch (error) {
+    console.error("Ошибка выполнения задания:", error);
+    showError("Ошибка выполнения задания");
   }
 }
 
@@ -378,21 +399,12 @@ function renderTasks() {
       `;
       
       if (hasAccess && !isCompleted) {
-        const goButton = document.createElement('button');
+        const goButton = document.createElement('a');
         goButton.className = 'btn btn-success btn-small step-action';
         goButton.innerHTML = '<i class="fas fa-check"></i> GO';
-        goButton.onclick = async function() {
-          try {
-            await completeTask(task.task_id, taskBlock.blockId);
-            stepDiv.classList.add('completed-step');
-            stepDiv.querySelector('.step-number').style.background = 'var(--success)';
-            goButton.style.display = 'none';
-            tg.HapticFeedback.impactOccurred('light');
-          } catch (error) {
-            console.error("Ошибка выполнения задания:", error);
-            tg.showAlert("Ошибка выполнения задания");
-          }
-        };
+        goButton.href = task.url || '#';
+        goButton.target = '_blank';
+        goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
         stepDiv.appendChild(goButton);
       }
       
@@ -406,7 +418,7 @@ function renderTasks() {
       startButton.textContent = 'Начать';
       startButton.onclick = function() {
         if (appState.balance < price) {
-          tg.showAlert(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
+          showError(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
           return;
         }
         showConfirmAvvaModal(price, reward, taskBlock.blockId, startButton, blockCard);
@@ -434,7 +446,7 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   button.onclick = async function() {
     try {
       if (appState.balance < price) {
-        tg.showAlert(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
+        showError(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
         closeModal('confirmAvvaModal');
         return;
       }
@@ -449,7 +461,7 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
       closeModal('confirmAvvaModal');
     } catch (error) {
       console.error("Ошибка при начале задания:", error);
-      tg.showAlert("Ошибка при начале задания");
+      showError("Ошибка при начале задания");
       closeModal('confirmAvvaModal');
     }
   };
@@ -460,7 +472,7 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
 
 async function startTask(avvaCost, blockId) {
   if (appState.balance < avvaCost) {
-    tg.showAlert("Недостаточно AVVA на балансе");
+    showError("Недостаточно AVVA на балансе");
     return;
   }
 
@@ -480,10 +492,7 @@ async function startTask(avvaCost, blockId) {
     // Обновляем доступ к заданиям блока
     await updateTaskAccess(blockId);
 
-    tg.showPopup({ 
-      title: "Задание начато!", 
-      message: `Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.` 
-    });
+    showSuccess(`Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.`);
     
     // Перезагружаем задания, чтобы отобразить изменения
     await loadTasks();
@@ -493,7 +502,7 @@ async function startTask(avvaCost, blockId) {
     // Откатываем изменения в случае ошибки
     appState.balance += avvaCost;
     updateUI();
-    tg.showAlert("Ошибка при начале задания");
+    showError("Ошибка при начале задания");
   }
 }
 
@@ -512,7 +521,7 @@ async function loadTeams() {
     }
   } catch (error) {
     console.error("Ошибка загрузки команд:", error);
-    tg.showAlert("Ошибка загрузки списка команд");
+    showError("Ошибка загрузки списка команд");
   }
 }
 
@@ -557,6 +566,22 @@ function closeModal(modalId) {
   tg.HapticFeedback.impactOccurred('light');
 }
 
+function showSuccess(message) {
+  const modal = document.getElementById('successModal');
+  const textElement = document.getElementById('successText');
+  textElement.textContent = message;
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
+
+function showError(message) {
+  const modal = document.getElementById('errorModal');
+  const textElement = document.getElementById('errorText');
+  textElement.textContent = message;
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('heavy');
+}
+
 function switchTab(tabName) {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.remove('active');
@@ -589,7 +614,7 @@ async function loadUserData() {
     }
   } catch (error) {
     console.error("Ошибка загрузки данных:", error);
-    tg.showAlert("Ошибка загрузки данных");
+    showError("Ошибка загрузки данных");
   }
 }
 
@@ -616,7 +641,7 @@ async function loadAllRatings() {
     renderAllRatings();
   } catch (error) {
     console.error("Ошибка загрузки рейтингов:", error);
-    tg.showAlert("Ошибка загрузки рейтингов");
+    showError("Ошибка загрузки рейтингов");
   }
 }
 
@@ -672,11 +697,12 @@ async function initApp() {
     window.startTask = startTask;
     window.showTaskDetails = showTaskDetails;
     window.showConfirmAvvaModal = showConfirmAvvaModal;
+    window.completeTaskFromLink = completeTaskFromLink;
 
     console.log("Приложение успешно инициализировано");
   } catch (error) {
     console.error("Ошибка инициализации:", error);
-    tg.showAlert("Ошибка загрузки приложения: " + error.message);
+    showError("Ошибка загрузки приложения: " + error.message);
   }
 }
 document.addEventListener('DOMContentLoaded', initApp);

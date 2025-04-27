@@ -167,6 +167,9 @@
             <div class="step-title">Подпишитесь на наш канал</div>
             <div class="step-description">Подпишитесь на официальный Telegram канал</div>
           </div>
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-1')">
+            <i class="fas fa-check"></i> GO
+          </a>
         </div>
         <div class="task-step">
           <div class="step-number">2</div>
@@ -174,6 +177,9 @@
             <div class="step-title">Сделайте репост</div>
             <div class="step-description">Поделитесь последним постом в своем канале</div>
           </div>
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-2')">
+            <i class="fas fa-check"></i> GO
+          </a>
         </div>
         <div class="task-step">
           <div class="step-number">3</div>
@@ -181,6 +187,9 @@
             <div class="step-title">Пригласите друзей</div>
             <div class="step-description">Пригласите 3 друзей в бота</div>
           </div>
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-3')">
+            <i class="fas fa-check"></i> GO
+          </a>
         </div>
       </div>
 
@@ -211,6 +220,34 @@
           <i class="fas fa-check"></i> Подтвердить
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">
+        <i class="fas fa-check-circle"></i>
+        Успех!
+      </h3>
+      <p id="successText" class="modal-text"></p>
+      <button class="btn btn-primary" onclick="closeModal('successModal')">
+        <i class="fas fa-check"></i> ОК
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Modal -->
+  <div id="errorModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">
+        <i class="fas fa-exclamation-circle"></i>
+        Ошибка
+      </h3>
+      <p id="errorText" class="modal-text"></p>
+      <button class="btn btn-primary" onclick="closeModal('errorModal')">
+        <i class="fas fa-check"></i> ОК
+      </button>
     </div>
   </div>
 
