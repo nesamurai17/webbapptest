@@ -6,36 +6,6 @@ const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-
-// Глобальные функции для модального окна
-window.showConfirmAvvaModal = function(price, reward) {
-  const modal = document.getElementById('confirmAvvaModal');
-  if (!modal) return;
-  
-  modal.querySelector('#avvaCost').textContent = price;
-  modal.querySelector('#confirmAvvaText').innerHTML = `
-    Подтвердите списание <strong>${price} AVVA</strong><br><br>
-    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
-  `;
-  
-  const confirmBtn = modal.querySelector('#confirmAvvaBtn');
-  confirmBtn.onclick = function() {
-    startTask(price);
-    closeModal('confirmAvvaModal');
-  };
-  
-  modal.classList.add('active');
-  if (window.Telegram && Telegram.WebApp.HapticFeedback) {
-    Telegram.WebApp.HapticFeedback.impactOccurred('light');
-  }
-};
-
-window.closeModal = function(modalId) {
-  document.getElementById(modalId)?.classList.remove('active');
-};
-
-
-
 const appState = {
   energy: 0,
   balance: 0,
@@ -43,7 +13,7 @@ const appState = {
   currentTask: null,
   teams: [],
   tasks: [],
-  userTasks: [], // Хранит задания конкретного пользователя
+  userTasks: [],
   ratings: {
     cash: [],
     tasks: [],
@@ -56,7 +26,6 @@ function updateUI() {
   document.getElementById("energy-percent").textContent = `${appState.energy}%`;
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
   
-  // Update user info if available
   if (tg.initDataUnsafe?.user) {
     const user = tg.initDataUnsafe.user;
     document.getElementById("username").textContent = user.first_name;
@@ -68,7 +37,6 @@ function updateUI() {
   }
 }
 
-
 async function initUserTasks() {
   if (!appState.userId) {
     console.error("User ID not available");
@@ -76,7 +44,6 @@ async function initUserTasks() {
   }
 
   try {
-    // Проверяем существование основной таблицы tasks
     const { error: tasksError } = await supabase
       .from('tasks')
       .select('*')
@@ -84,7 +51,6 @@ async function initUserTasks() {
     
     if (tasksError) throw new Error("Таблица tasks не найдена");
 
-    // Синхронизируем задания пользователя
     await syncUserTasks();
     return true;
     
@@ -97,14 +63,12 @@ async function initUserTasks() {
 
 async function syncUserTasks() {
   try {
-    // 1. Получаем все задания из основной таблицы
     const { data: allTasks, error: tasksError } = await supabase
       .from('tasks')
       .select('*');
     
     if (tasksError) throw tasksError;
 
-    // 2. Получаем текущие задания пользователя
     const { data: userTasks, error: userTasksError } = await supabase
       .from('user_tasks')
       .select('*')
@@ -112,7 +76,6 @@ async function syncUserTasks() {
     
     if (userTasksError) throw userTasksError;
 
-    // 3. Находим новые задания для добавления
     const existingTaskIds = userTasks.map(t => t.task_id);
     const tasksToAdd = allTasks
       .filter(task => !existingTaskIds.includes(task.task_id))
@@ -123,7 +86,6 @@ async function syncUserTasks() {
         completed: 0
       }));
 
-    // 4. Добавляем новые задания
     if (tasksToAdd.length > 0) {
       const { error: insertError } = await supabase
         .from('user_tasks')
@@ -132,7 +94,6 @@ async function syncUserTasks() {
       if (insertError) throw insertError;
     }
 
-    // Сохраняем задания пользователя
     appState.userTasks = userTasks.concat(tasksToAdd);
     return true;
     
@@ -152,7 +113,6 @@ async function loadTasks() {
     if (error) throw error;
     
     if (allTasks) {
-      // Группируем задания по блокам
       const groupedTasks = {};
       allTasks.forEach(task => {
         const [blockId] = task.task_id.split('-');
@@ -164,7 +124,6 @@ async function loadTasks() {
           };
         }
         
-        // Добавляем статус из userTasks
         const userTask = appState.userTasks.find(t => t.task_id === task.task_id);
         groupedTasks[blockId].tasks.push({
           ...task,
@@ -182,52 +141,10 @@ async function loadTasks() {
   }
 }
 
-async function loadTasks() {
-  try {
-    const { data: allTasks, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('task_id', { ascending: true });
-
-    if (error) throw error;
-    
-    if (allTasks) {
-      // Группируем задания по блокам
-      const groupedTasks = {};
-      allTasks.forEach(task => {
-        const [blockId] = task.task_id.split('-');
-        if (!groupedTasks[blockId]) {
-          groupedTasks[blockId] = {
-            price: task.price,
-            reward: task.reward,
-            tasks: []
-          };
-        }
-        
-        // Добавляем статус из userTasks
-        const userTask = appState.userTasks.find(t => t.task_id === task.task_id);
-        groupedTasks[blockId].tasks.push({
-          ...task,
-          access: userTask?.access || 0,
-          completed: userTask?.completed || 0
-        });
-      });
-      
-      appState.tasks = Object.values(groupedTasks);
-      renderTasks();
-    }
-  } catch (error) {
-    console.error("Ошибка загрузки заданий:", error);
-    tg.showAlert("Ошибка загрузки списка заданий");
-  }
-}
-
-// Отрисовка заданий
 function renderTasks() {
   const tasksContainer = document.getElementById('tasks-page');
   if (!tasksContainer) return;
 
-  // Очистка контейнера
   tasksContainer.innerHTML = '<div class="header"><div class="user-info"><div class="user-name">Задания</div></div></div>';
 
   if (!appState.tasks || appState.tasks.length === 0) {
@@ -236,13 +153,11 @@ function renderTasks() {
   }
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
-    // Проверяем что данные существуют
     if (!taskBlock || !taskBlock.tasks) return;
     
     const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
     if (!hasUncompletedTasks) return;
 
-    // Проверяем наличие обязательных полей
     const price = taskBlock.price || 0;
     const reward = taskBlock.reward || 0;
     const blockName = `Блок заданий #${blockIndex + 1}`;
@@ -264,7 +179,6 @@ function renderTasks() {
       <div class="task-steps">
     `;
 
-    // Добавляем задания
     taskBlock.tasks.forEach((task, taskIndex) => {
       if (task.completed === 0) {
         const taskName = task.name || `Задание ${taskIndex + 1}`;
@@ -282,15 +196,12 @@ function renderTasks() {
       }
     });
 
-    // Создаем кнопку с правильным обработчиком
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
     startButton.textContent = 'Начать';
-    startButton.onclick = (function(price, reward) {
-      return function() {
-        showConfirmAvvaModal(price, reward);
-      };
-    })(price, reward);
+    startButton.onclick = function() {
+      showConfirmAvvaModal(price, reward);
+    };
 
     blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
@@ -302,7 +213,7 @@ async function loadTeams() {
     const { data, error } = await supabase
       .from('teams')
       .select('team_id, score')
-      .order('score', { ascending: false }); // Сортируем по score
+      .order('score', { ascending: false });
 
     if (error) throw error;
     
@@ -320,17 +231,14 @@ function renderTeams() {
   const teamsContainer = document.getElementById('teams-page');
   if (!teamsContainer) return;
 
-  // Очищаем существующие карточки (кроме header)
   const existingCards = teamsContainer.querySelectorAll('.card');
   existingCards.forEach(card => card.remove());
 
-  // Создаем карточки для каждой команды
   appState.teams.forEach((team, index) => {
     const teamCard = document.createElement('div');
     teamCard.className = 'card';
     
-    // Определяем иконку и бейдж в зависимости от позиции в рейтинге
-    const isTopTeam = index < 3; // Топ-3 команды
+    const isTopTeam = index < 3;
     const badgeText = isTopTeam ? `Топ ${index + 1}` : `Очки: ${team.score}`;
     
     teamCard.innerHTML = `
@@ -344,7 +252,6 @@ function renderTeams() {
       <p class="card-description">
         ${isTopTeam ? 'Лидер рейтинга' : 'Присоединяйтесь и зарабатывайте очки'}
       </p>
-      
     `;
     
     teamsContainer.appendChild(teamCard);
@@ -367,24 +274,6 @@ async function updateEnergyInDB(newEnergy) {
   }
 }
 
-async function startTask(energyCost) {
-  const newEnergy = appState.energy - energyCost;
-  appState.energy = newEnergy;
-  updateUI();
-  
-  const success = await updateEnergyInDB(newEnergy);
-  
-  if (success) {
-    tg.showPopup({ 
-      title: "Задание начато!", 
-      message: `Списано ${energyCost}% энергии` 
-    });
-  } else {
-    appState.energy += energyCost;
-    updateUI();
-  }
-}
-
 function showTaskDetails(task) {
   appState.currentTask = task;
   switchTab('task-details');
@@ -402,12 +291,28 @@ function showEnergyModal(requiredEnergy) {
   }
 }
 
+function showConfirmAvvaModal(avvaCost, reward) {
+  document.getElementById("confirmAvvaText").innerHTML = `
+    Вы подтверждаете списание <strong>${avvaCost} AVVA</strong>?<br><br>
+    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
+  `;
+  
+  const confirmBtn = document.getElementById("confirmAvvaBtn");
+  confirmBtn.onclick = function() {
+    startTask(avvaCost);
+    closeModal('confirmAvvaModal');
+  };
+  
+  document.getElementById("confirmAvvaModal").classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
+
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
+  tg.HapticFeedback.impactOccurred('light');
 }
 
 function switchTab(tabName) {
-  // Update navigation
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.remove('active');
   });
@@ -416,12 +321,10 @@ function switchTab(tabName) {
     document.querySelector(`.nav-item[onclick="switchTab('${tabName}')"]`).classList.add('active');
   }
   
-  // Hide all pages
   document.querySelectorAll('.page').forEach(page => {
     page.classList.remove('active');
   });
   
-  // Show selected page
   document.getElementById(`${tabName}-page`).classList.add('active');
 }
 
@@ -448,21 +351,18 @@ async function loadUserData() {
 
 async function loadAllRatings() {
   try {
-    // Загружаем рейтинг по балансу (cash) с именами
     const { data: cashData } = await supabase
       .from('users')
-      .select('user_id, cash, name') // Добавляем поле name
+      .select('user_id, cash, name')
       .order('cash', { ascending: false })
       .limit(10);
     
-    // Загружаем рейтинг по заданиям (countoftasks) с именами
     const { data: tasksData } = await supabase
       .from('users')
-      .select('user_id, countoftasks, name') // Добавляем поле name
+      .select('user_id, countoftasks, name')
       .order('countoftasks', { ascending: false })
       .limit(10);
     
-    // Пока оставляем рейтинг по инвайтам пустым
     const invitesData = [];
     
     if (cashData) appState.ratings.cash = cashData;
@@ -491,7 +391,6 @@ function renderRatingList(elementId, data, valueField) {
     const item = document.createElement('div');
     item.className = 'rating-item';
     
-    // Используем user.name или показываем "Аноним", если имя отсутствует
     const userName = user.name || `Игрок ${user.user_id.slice(0, 4)}`;
     
     item.innerHTML = `
@@ -504,100 +403,52 @@ function renderRatingList(elementId, data, valueField) {
   });
 }
 
-// Функция для отрисовки всех рейтингов
 function renderAllRatings() {
   renderRatingList('cash-rating', appState.ratings.cash, 'cash');
   renderRatingList('tasks-rating', appState.ratings.tasks, 'countoftasks');
   renderRatingList('invites-rating', appState.ratings.invites, 'invites');
 }
 
-// Показываем модальное окно подтверждения
-function showConfirmAvvaModal(avvaCost, reward) {
-  document.getElementById("avvaCost").textContent = avvaCost;
-  document.getElementById("confirmAvvaText").innerHTML = `
-    Вы уверены, что хотите списать <strong>${avvaCost} AVVA</strong> 
-    для начала задания?<br><br>
-    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
-  `;
-  
-  // Обработчик подтверждения
-  document.getElementById("confirmAvvaButton").onclick = () => {
-    startTask(avvaCost);
-    closeModal('confirmAvvaModal');
-  };
-  
-  document.getElementById("confirmAvvaModal").classList.add('active');
-}
-
-// Функция начала задания (уже есть у вас)
 async function startTask(avvaCost) {
   if (appState.balance < avvaCost) {
     tg.showAlert("Недостаточно AVVA на балансе");
     return;
   }
 
+  if (appState.energy < avvaCost) {
+    tg.showAlert("Недостаточно энергии");
+    return;
+  }
+
   try {
-    // Списание AVVA
-    const newBalance = appState.balance - avvaCost;
+    appState.balance -= avvaCost;
+    appState.energy -= avvaCost;
+    updateUI();
+
     const { error } = await supabase
       .from('users')
-      .update({ cash: newBalance })
+      .update({ 
+        cash: appState.balance,
+        energy: appState.energy 
+      })
       .eq('user_id', appState.userId);
-    
-    if (!error) {
-      appState.balance = newBalance;
-      updateUI();
-      tg.showPopup({
-        title: "Списание успешно",
-        message: `Списано ${avvaCost} AVVA`
-      });
-      // Здесь можно добавить логику начала задания
-    }
-  } catch (error) {
-    console.error("Ошибка списания:", error);
-    tg.showAlert("Ошибка списания AVVA");
-  }
-}
 
-async function checkPermissions() {
-  try {
-    const testTable = `temp_table_${Date.now()}`;
-    const { error } = await supabase.rpc('create_user_tasks_table', {
-      table_name: testTable
+    if (error) throw error;
+
+    tg.showPopup({ 
+      title: "Задание начато!", 
+      message: `Списано ${avvaCost} AVVA` 
     });
     
-    if (error) {
-      console.error("Permission error:", error);
-      tg.showAlert("Недостаточно прав для создания таблиц");
-      return false;
-    }
+    await loadTasks();
     
-    await supabase.rpc('drop_table', { table_name: testTable });
-    return true;
-  } catch (e) {
-    console.error("Permission check failed:", e);
-    return false;
+  } catch (error) {
+    console.error("Ошибка:", error);
+    appState.balance += avvaCost;
+    appState.energy += avvaCost;
+    updateUI();
+    tg.showAlert("Ошибка при начале задания");
   }
-}
-
-function showConfirmAvvaModal(avvaCost, reward) {
-  // Заполняем модальное окно
-  document.getElementById("avvaCost").textContent = avvaCost;
-  document.getElementById("confirmAvvaText").innerHTML = `
-    Списание <strong>${avvaCost} AVVA</strong> для начала задания.<br>
-    <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
-  `;
-  
-  // Настраиваем кнопку подтверждения
-  const confirmBtn = document.getElementById("confirmAvvaButton");
-  confirmBtn.onclick = async () => {
-    tg.HapticFeedback.impactOccurred('heavy');
-    await startTask(avvaCost); // Ваша функция списания
-    closeModal('confirmAvvaModal');
-  };
-  
-  // Показываем окно
-  document.getElementById("confirmAvvaModal").classList.add('active');
 }
 
 async function initApp() {
@@ -610,12 +461,12 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
-    // Глобальные функции
     window.showEnergyModal = showEnergyModal;
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
     window.showTaskDetails = showTaskDetails;
+    window.showConfirmAvvaModal = showConfirmAvvaModal;
 
   } catch (error) {
     console.error("Ошибка инициализации:", error);

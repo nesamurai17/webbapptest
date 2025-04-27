@@ -44,20 +44,17 @@
         Здесь пока пусто
       </p>
     </div>
-
-    
   </div>
 
   <!-- Teams Page -->
-<div id="teams-page" class="page">
-  <div class="header">
-    <div class="user-info">
-      <div class="user-name">Мои команды</div>
-      <div class="user-id">Присоединяйтесь к сообществу</div>
+  <div id="teams-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">Мои команды</div>
+        <div class="user-id">Присоединяйтесь к сообществу</div>
+      </div>
     </div>
   </div>
-  <!-- Карточки команд будут добавляться здесь динамически -->
-</div>
 
   <!-- Market Page -->
   <div id="market-page" class="page">
@@ -97,64 +94,60 @@
     </div>
   </div>
 
-
   <!-- Tasks Page -->
-<!-- Tasks Page -->
-<div id="tasks-page" class="page">
-  <div class="header">
-    <div class="user-info">
-      <div class="user-name">Задания</div>
-      <div class="user-id">Зарабатывайте очки, выполняя задания</div>
-    </div>
-  </div>
-  <!-- Блоки заданий будут добавляться здесь динамически -->
-</div>
-
-<!-- Rating Page -->
-<div id="rating-page" class="page">
-  <div class="header">
-    <div class="user-info">
-      <div class="user-name">Рейтинг игроков</div>
-      <div class="user-id">Топ 10 по разным категориям</div>
-    </div>
-  </div>
-
-  <div class="rating-columns">
-    <!-- Колонка по балансу -->
-    <div class="rating-column">
-      <div class="column-header">
-        <i class="fas fa-coins"></i>
-        <h3>По балансу</h3>
-      </div>
-      <div id="cash-rating" class="rating-list">
-        <!-- Список будет заполнен JS -->
-        <div class="loading">Загрузка...</div>
-      </div>
-    </div>
-
-    <!-- Колонка по заданиям -->
-    <div class="rating-column">
-      <div class="column-header">
-        <i class="fas fa-tasks"></i>
-        <h3>По заданиям</h3>
-      </div>
-      <div id="tasks-rating" class="rating-list">
-        <div class="loading">Загрузка...</div>
-      </div>
-    </div>
-
-    <!-- Колонка по инвайтам -->
-    <div class="rating-column">
-      <div class="column-header">
-        <i class="fas fa-user-plus"></i>
-        <h3>По инвайтам</h3>
-      </div>
-      <div id="invites-rating" class="rating-list">
-        <div class="loading">Загрузка...</div>
+  <div id="tasks-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">Задания</div>
+        <div class="user-id">Зарабатывайте очки, выполняя задания</div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- Rating Page -->
+  <div id="rating-page" class="page">
+    <div class="header">
+      <div class="user-info">
+        <div class="user-name">Рейтинг игроков</div>
+        <div class="user-id">Топ 10 по разным категориям</div>
+      </div>
+    </div>
+
+    <div class="rating-columns">
+      <!-- Колонка по балансу -->
+      <div class="rating-column">
+        <div class="column-header">
+          <i class="fas fa-coins"></i>
+          <h3>По балансу</h3>
+        </div>
+        <div id="cash-rating" class="rating-list">
+          <div class="loading">Загрузка...</div>
+        </div>
+      </div>
+
+      <!-- Колонка по заданиям -->
+      <div class="rating-column">
+        <div class="column-header">
+          <i class="fas fa-tasks"></i>
+          <h3>По заданиям</h3>
+        </div>
+        <div id="tasks-rating" class="rating-list">
+          <div class="loading">Загрузка...</div>
+        </div>
+      </div>
+
+      <!-- Колонка по инвайтам -->
+      <div class="rating-column">
+        <div class="column-header">
+          <i class="fas fa-user-plus"></i>
+          <h3>По инвайтам</h3>
+        </div>
+        <div id="invites-rating" class="rating-list">
+          <div class="loading">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Task Details Page -->
   <div id="task-details-page" class="page">
@@ -229,52 +222,50 @@
     </div>
   </div>
 
+  <!-- Confirm AVVA Modal -->
+  <div id="confirmAvvaModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">
+        <i class="fas fa-exclamation-triangle"></i>
+        Подтверждение списания
+      </h3>
+      <p id="confirmAvvaText" class="modal-text"></p>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="closeModal('confirmAvvaModal')">
+          <i class="fas fa-times"></i> Отмена
+        </button>
+        <button id="confirmAvvaBtn" class="btn btn-primary">
+          <i class="fas fa-check"></i> Подтвердить
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Bottom Navigation -->
-<div class="bottom-nav-container">
-  <div class="bottom-nav">
-    <div class="nav-item active" onclick="switchTab('home')">
-      <i class="fas fa-gamepad"></i>
-      <span>Игра</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('tasks')">
-      <i class="fas fa-tasks"></i>
-      <span>Задания</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('teams')">
-      <i class="fas fa-users"></i>
-      <span>Команды</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('rating')">
-      <i class="fas fa-trophy"></i>
-      <span>Рейтинг</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('market')">
-      <i class="fas fa-shopping-bag"></i>
-      <span>Маркет</span>
-    </div>
-  </div>
-</div>
-
-<!-- Модальное окно подтверждения -->
-<div id="confirmAvvaModal" class="modal">
-  <div class="modal-content">
-    <h3 class="modal-title">
-      <i class="fas fa-exclamation-triangle"></i>
-      Подтверждение списания
-    </h3>
-    <p id="confirmAvvaText" class="modal-text"></p>
-    <div class="btn-group">
-      <button class="btn btn-secondary" onclick="window.closeModal('confirmAvvaModal')">
-        <i class="fas fa-times"></i> Отмена
-      </button>
-      <button id="confirmAvvaBtn" class="btn btn-primary">
-        <i class="fas fa-check"></i> Подтвердить
-      </button>
+  <div class="bottom-nav-container">
+    <div class="bottom-nav">
+      <div class="nav-item active" onclick="switchTab('home')">
+        <i class="fas fa-gamepad"></i>
+        <span>Игра</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('tasks')">
+        <i class="fas fa-tasks"></i>
+        <span>Задания</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('teams')">
+        <i class="fas fa-users"></i>
+        <span>Команды</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('rating')">
+        <i class="fas fa-trophy"></i>
+        <span>Рейтинг</span>
+      </div>
+      <div class="nav-item" onclick="switchTab('market')">
+        <i class="fas fa-shopping-bag"></i>
+        <span>Маркет</span>
+      </div>
     </div>
   </div>
-</div>
-
-
 
   <script src="script.js"></script>
 </body>
