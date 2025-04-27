@@ -7,27 +7,31 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 
-// Глобальные функции
-window.showConfirmAvvaModal = function(avvaCost, reward) {
-  document.getElementById("avvaCost").textContent = avvaCost;
-  document.getElementById("confirmAvvaText").innerHTML = `
-    Вы подтверждаете списание <strong>${avvaCost} AVVA</strong>?<br><br>
+// Глобальные функции для модального окна
+window.showConfirmAvvaModal = function(price, reward) {
+  const modal = document.getElementById('confirmAvvaModal');
+  if (!modal) return;
+  
+  modal.querySelector('#avvaCost').textContent = price;
+  modal.querySelector('#confirmAvvaText').innerHTML = `
+    Подтвердите списание <strong>${price} AVVA</strong><br><br>
     <i class="fas fa-gem"></i> Награда: <strong>${reward} очков</strong>
   `;
   
-  const confirmBtn = document.getElementById("confirmAvvaBtn");
+  const confirmBtn = modal.querySelector('#confirmAvvaBtn');
   confirmBtn.onclick = function() {
-    startTask(avvaCost);
-    window.closeModal('confirmAvvaModal');
+    startTask(price);
+    closeModal('confirmAvvaModal');
   };
   
-  document.getElementById("confirmAvvaModal").classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
+  modal.classList.add('active');
+  if (window.Telegram && Telegram.WebApp.HapticFeedback) {
+    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+  }
 };
 
 window.closeModal = function(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-  tg.HapticFeedback.impactOccurred('light');
+  document.getElementById(modalId)?.classList.remove('active');
 };
 
 
@@ -223,97 +227,76 @@ function renderTasks() {
   const tasksContainer = document.getElementById('tasks-page');
   if (!tasksContainer) return;
 
-  tasksContainer.querySelectorAll('.task-card').forEach(card => card.remove());
+  // Очистка контейнера
+  tasksContainer.innerHTML = '<div class="header"><div class="user-info"><div class="user-name">Задания</div></div></div>';
 
-  const startButton = document.createElement('button');
-  startButton.className = 'btn btn-primary';
-  startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
-  
-  startButton.addEventListener('click', () => {
-    tg.HapticFeedback.impactOccurred('light');
-    
-    // Создаем модальное окно динамически
-    const modal = document.createElement('div');
-    modal.innerHTML = `
-      <div class="modal active" id="tempModal">
-        <div class="modal-content">
-          <h3>Подтверждение</h3>
-          <p>Списать ${taskBlock.price} AVVA?</p>
-          <button onclick="this.closest('.modal').remove(); startTask(${taskBlock.price})">
-            Подтвердить
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-  });
+  if (!appState.tasks || appState.tasks.length === 0) {
+    tasksContainer.innerHTML += '<div class="card"><p>Нет доступных заданий</p></div>';
+    return;
+  }
 
   appState.tasks.forEach((taskBlock, blockIndex) => {
-    // Проверяем, есть ли невыполненные задания
-    const hasUncompletedTasks = taskBlock.tasks.some(task => !task.completed);
+    // Проверяем что данные существуют
+    if (!taskBlock || !taskBlock.tasks) return;
     
-    // Если ВСЕ задания выполнены - пропускаем блок
+    const hasUncompletedTasks = taskBlock.tasks.some(task => task.completed === 0);
     if (!hasUncompletedTasks) return;
 
-    const anyAccess = taskBlock.tasks.some(task => task.access);
+    // Проверяем наличие обязательных полей
+    const price = taskBlock.price || 0;
+    const reward = taskBlock.reward || 0;
+    const blockName = `Блок заданий #${blockIndex + 1}`;
 
     const blockCard = document.createElement('div');
     blockCard.className = 'card task-card';
-
-
-
-    
-
-
-
-    
-
     
     blockCard.innerHTML = `
       <div class="card-title">
         <i class="fas fa-star"></i>
-        Блок #${blockIndex + 1}
+        ${blockName}
       </div>
       <div class="badge badge-primary">
-        <i class="fas fa-bolt"></i> Стоимость: ${taskBlock.price} AVVA
+        <i class="fas fa-bolt"></i> Стоимость: ${price} AVVA
       </div>
       <div class="badge badge-premium" style="margin-top: 0.5rem;">
-        <i class="fas fa-gem"></i> Награда: ${taskBlock.reward} очков
+        <i class="fas fa-gem"></i> Награда: ${reward} очков
       </div>
       <div class="task-steps">
     `;
 
-    const taskSteps = blockCard.querySelector('.task-steps');
+    // Добавляем задания
     taskBlock.tasks.forEach((task, taskIndex) => {
-      if (!task.completed) { // Показываем только невыполненные
-        const taskStep = document.createElement('div');
-        taskStep.className = 'task-step';
-        taskStep.innerHTML = `
-          <div class="step-number">${taskIndex + 1}</div>
-          <div class="step-content">
-            <div class="step-title">${task.name}</div>
-            <div class="step-description">${task.text}</div>
+      if (task.completed === 0) {
+        const taskName = task.name || `Задание ${taskIndex + 1}`;
+        const taskText = task.text || 'Описание отсутствует';
+        
+        blockCard.querySelector('.task-steps').innerHTML += `
+          <div class="task-step">
+            <div class="step-number">${taskIndex + 1}</div>
+            <div class="step-content">
+              <div class="step-title">${taskName}</div>
+              <div class="step-description">${taskText}</div>
+            </div>
           </div>
         `;
-        taskSteps.appendChild(taskStep);
       }
     });
 
+    // Создаем кнопку с правильным обработчиком
     const startButton = document.createElement('button');
     startButton.className = 'btn btn-primary';
-    startButton.innerHTML = '<i class="fas fa-play"></i> Начать';
-    
-    // Обработчик с подтверждением списания
-    startButton.addEventListener('click', () => {
-      tg.HapticFeedback.impactOccurred('light');
-      showConfirmAvvaModal(taskBlock.price, taskBlock.reward);
-    });
-    
+    startButton.textContent = 'Начать';
+    startButton.onclick = (function(price, reward) {
+      return function() {
+        showConfirmAvvaModal(price, reward);
+      };
+    })(price, reward);
+
     blockCard.appendChild(startButton);
     tasksContainer.appendChild(blockCard);
   });
 }
+
 async function loadTeams() {
   try {
     const { data, error } = await supabase
