@@ -3,7 +3,7 @@ tg.expand();
 tg.enableClosingConfirmation();
 
 // Конфигурация API для работы с Beget MySQL
-const API_URL = 'https://pisare3h.beget.tech/api.php'; // Замените на ваш реальный URL
+const API_URL = 'http://pisare3h.beget.tech/api.php'; // Локальный путь к API
 
 const appState = {
   balance: 0,
@@ -25,37 +25,34 @@ const appState = {
   isWalletConnected: false
 };
 
-// Общие функции для работы с API
-async function fetchData(endpoint, params = {}) {
+// Универсальный метод для запросов к API
+async function fetchData(action, params = {}) {
   try {
-    const response = await fetch(`${API_URL}?action=${endpoint}`, {
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('user_id', appState.userId);
+    
+    for (const key in params) {
+      if (params[key] !== undefined) {
+        formData.append(key, params[key]);
+      }
+    }
+
+    const response = await fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...params,
-        user_id: appState.userId
-      })
+      body: formData
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
     
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    
-    return data;
   } catch (error) {
-    console.error(`Ошибка при запросе к ${endpoint}:`, error);
+    console.error(`Ошибка при запросе ${action}:`, error);
     throw error;
   }
 }
 
+// Обновление интерфейса
 function updateUI() {
   document.getElementById("balance").textContent = `${appState.balance} AVVA`;
   
@@ -74,75 +71,26 @@ function updateUI() {
   }
 }
 
-async function initWallet() {
-  try {
-    if (window.ton) {
-      const accounts = await window.ton.send("ton_requestAccounts");
-      
-      if (accounts && accounts.length > 0) {
-        const walletAddress = accounts[0];
-        appState.walletAddress = walletAddress;
-        appState.isWalletConnected = true;
-        
-        const { error } = await fetchData('update_wallet', { wallet_address: walletAddress });
-        
-        if (!error) {
-          showSuccess("TON кошелек успешно подключен!");
-          updateUI();
-          await getWalletBalance();
-        } else {
-          showError("Ошибка сохранения кошелька");
-        }
-      } else {
-        showError("Не удалось получить адрес кошелька");
-      }
-    } else {
-      showError("TON Provider не обнаружен. Установите TonWallet или другую поддерживаемую программу.");
-    }
-  } catch (error) {
-    console.error("Ошибка подключения кошелька:", error);
-    showError("Ошибка подключения кошелька");
-  }
-}
-
-async function getWalletBalance() {
-  if (!appState.walletAddress) return;
-  
-  try {
-    const balance = await window.ton.send("ton_getBalance", { address: appState.walletAddress });
-    appState.walletBalance = balance;
-    updateUI();
-  } catch (error) {
-    console.error("Ошибка получения баланса:", error);
-    showError("Ошибка получения баланса");
-  }
-}
-
+// Загрузка данных пользователя
 async function loadUserData() {
   if (!appState.userId) return;
   
   try {
     const data = await fetchData('get_user_data');
-    
-    if (data) {
-      appState.balance = data.cash || 0;
-      appState.walletAddress = data.wallet_address || null;
-      updateUI();
-    }
+    appState.balance = data.cash || 0;
+    appState.walletAddress = data.wallet_address || null;
+    updateUI();
   } catch (error) {
     console.error("Ошибка загрузки данных:", error);
     showError("Ошибка загрузки данных");
   }
 }
 
+// Работа с заданиями
 async function initUserTasks() {
-  if (!appState.userId) {
-    console.error("User ID not available");
-    return false;
-  }
+  if (!appState.userId) return false;
 
   try {
-    await fetchData('check_tasks_table');
     await syncUserTasks();
     return true;
   } catch (error) {
@@ -168,7 +116,7 @@ async function syncUserTasks() {
       }));
 
     if (tasksToAdd.length > 0) {
-      await fetchData('add_user_tasks', { tasks: tasksToAdd });
+      await fetchData('add_user_tasks', { tasks: JSON.stringify(tasksToAdd) });
     }
 
     appState.userTasks = userTasks.concat(tasksToAdd);
@@ -178,6 +126,7 @@ async function syncUserTasks() {
     throw error;
   }
 }
+
 
 async function loadTasks() {
   try {
@@ -810,14 +759,11 @@ async function initApp() {
     await loadTeams();
     await loadAllRatings();
     switchTab('home');
-
-    // Восстанавливаем таймеры
     restoreTimers();
 
-    // Сохраняем таймеры при закрытии
     window.addEventListener('beforeunload', saveTimersToStorage);
 
-    // Экспорт функций
+    // Экспорт функций в глобальную область видимости
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
