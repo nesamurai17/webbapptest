@@ -405,10 +405,7 @@ function renderTasks() {
         goButton.setAttribute('data-task-id', task.task_id);
         
         if (appState.activeTimers[task.task_id]) {
-          let secondsLeft = 60;
-          const timer = appState.activeTimers[task.task_id];
-          
-          goButton.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
+          goButton.innerHTML = '<i class="fas fa-clock"></i>';
           goButton.classList.add('timer-active');
         } else {
           goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
