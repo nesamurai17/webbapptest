@@ -482,7 +482,6 @@ async function updateTaskAccess(blockId) {
 
 async function completeTask(taskId, blockId) {
   try {
-    // 1. Обновляем статус задания как выполненное
     const { error: updateError } = await supabase
       .from('user_tasks')
       .update({ completed: 1 })
@@ -491,7 +490,6 @@ async function completeTask(taskId, blockId) {
     
     if (updateError) throw updateError;
 
-    // 2. Обновляем состояние приложения
     appState.userTasks = appState.userTasks.map(task => {
       if (task.task_id === taskId) {
         return { ...task, completed: 1 };
@@ -509,25 +507,6 @@ async function completeTask(taskId, blockId) {
     });
 
     if (allCompleted) {
-      // 3. Увеличиваем счетчик выполненных заданий
-      // Вместо RPC используем обычный запрос
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('countoftasks')
-        .eq('user_id', appState.userId)
-        .single();
-      
-      if (userError) throw userError;
-
-      const currentCount = userData.countoftasks || 0;
-      
-      const { error: incrementError } = await supabase
-        .from('users')
-        .update({ countoftasks: currentCount + 1 })
-        .eq('user_id', appState.userId);
-      
-      if (incrementError) throw incrementError;
-
       if (block.reward > 0) {
         appState.balance += block.reward;
         updateUI();
@@ -550,10 +529,10 @@ async function completeTask(taskId, blockId) {
     return true;
   } catch (error) {
     console.error("Ошибка выполнения задания:", error);
-    showError("Ошибка выполнения задания: " + error.message);
     throw error;
   }
 }
+
 function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   const modal = document.getElementById('confirmAvvaModal');
   const textElement = document.getElementById('confirmAvvaText');
@@ -884,58 +863,6 @@ function shareToOther() {
 }
 
 
-async function initWallet() {
-  if (!window.Telegram.WebApp.initDataUnsafe) {
-    console.log("Not in Telegram WebApp");
-    return;
-  }
-
-  try {
-    // Проверяем доступность кошелька
-    if (window.Telegram.WebApp.isVersionAtLeast('6.4')) {
-      // Запрашиваем доступ к кошельку
-      const result = await window.Telegram.WebApp.openInvoice({
-        currency: 'TON',
-        amount: '0', // Нулевая сумма для проверки доступа
-        description: 'Подключение кошелька'
-      });
-
-      if (result.status === 'paid') {
-        // Получаем данные кошелька
-        const walletData = await window.Telegram.WebApp.sendData({
-          data: JSON.stringify({ type: 'get_wallet_info' })
-        });
-
-        if (walletData) {
-          const walletInfo = JSON.parse(walletData);
-          appState.walletAddress = walletInfo.address;
-          appState.walletBalance = walletInfo.balance;
-          appState.isWalletConnected = true;
-          updateWalletUI();
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Wallet error:", error);
-  }
-}
-
-function updateWalletUI() {
-  if (appState.isWalletConnected) {
-    const walletElement = document.getElementById('wallet-info');
-    if (walletElement) {
-      walletElement.innerHTML = `
-        <div class="wallet-card">
-          <i class="fas fa-wallet"></i>
-          <span>TON Кошелек: ${appState.walletAddress?.slice(0, 6)}...${appState.walletAddress?.slice(-4)}</span>
-          <span>Баланс: ${appState.walletBalance} TON</span>
-        </div>
-      `;
-    }
-  }
-}
-
-
 
 async function initApp() {
   try {
@@ -947,7 +874,6 @@ async function initApp() {
     await loadTeams();
     await loadTasks();
     await loadAllRatings();
-    await initWallet();
     switchTab('home');
 
     // Восстанавливаем таймеры
