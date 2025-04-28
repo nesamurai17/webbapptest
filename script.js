@@ -622,19 +622,43 @@ async function startTask(avvaCost, blockId) {
 
 async function loadTeams() {
   try {
+    showLoading('Загрузка списка команд...');
+    
     const { data, error } = await supabase
       .from('teams')
-      .select('team_id, score, members')
+      .select('team_id, name, score, members, logo_url')
       .order('score', { ascending: false });
 
     if (error) throw error;
     
-    if (data) {
+    if (data && data.length > 0) {
       appState.teams = data;
-      renderTeams();
+    } else {
+      // Если данных нет, создаем заглушку
+      appState.teams = [{
+        team_id: '1',
+        name: 'Пример команды',
+        score: 100,
+        members: 5,
+        logo_url: 'https://via.placeholder.com/60'
+      }];
     }
+    
+    renderTeams();
+    hideLoading();
+    
   } catch (error) {
     console.error("Ошибка загрузки команд:", error);
+    // Создаем заглушку при ошибке
+    appState.teams = [{
+      team_id: '1',
+      name: 'Пример команды',
+      score: 100,
+      members: 5,
+      logo_url: 'https://via.placeholder.com/60'
+    }];
+    renderTeams();
+    hideLoading();
     showError("Ошибка загрузки списка команд");
   }
 }
@@ -643,26 +667,75 @@ function renderTeams() {
   const teamsContainer = document.getElementById('teams-container');
   if (!teamsContainer) return;
 
-  teamsContainer.innerHTML = '';
+  // Очищаем контейнер, но оставляем заголовок
+  const existingCards = teamsContainer.querySelectorAll('.task-card:not(:first-child)');
+  existingCards.forEach(card => card.remove());
+
+  if (!appState.teams || appState.teams.length === 0) {
+    teamsContainer.innerHTML += '<div class="task-card"><div class="inner-2"><div class="card-title">Нет доступных команд</div></div></div>';
+    return;
+  }
 
   appState.teams.forEach((team, index) => {
     const teamCard = document.createElement('div');
     teamCard.className = 'task-card';
     
     const isTopTeam = index < 3;
+    const medalIcon = isTopTeam ? 
+      `<i class="fas fa-medal" style="color: ${index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32'}"></i> ` : '';
     
     teamCard.innerHTML = `
       <div class="inner-2">
-        <div class="coin-balance-2">Команда #${team.team_id}</div>
+        <div class="coin-balance-2">${medalIcon}${team.name || `Команда #${team.team_id}`}</div>
         <div class="frame-7">
           <div class="card-title">Очки: ${team.score || 0}</div>
           <div class="card-title">Участники: ${team.members || 0}</div>
+          ${team.logo_url ? `<img src="${team.logo_url}" class="team-logo" alt="Логотип команды">` : ''}
+        </div>
+        <div class="frame-8">
+          <button class="div-wrapper" onclick="joinTeam('${team.team_id}')">
+            <div class="text-wrapper-5">Присоединиться</div>
+          </button>
         </div>
       </div>
     `;
     
     teamsContainer.appendChild(teamCard);
   });
+}
+
+async function joinTeam(teamId) {
+  try {
+    showLoading('Присоединение к команде...');
+    
+    if (!appState.userId) {
+      throw new Error("Не удалось определить пользователя");
+    }
+
+    // Обновляем информацию о команде пользователя
+    const { error } = await supabase
+      .from('users')
+      .update({ team_id: teamId })
+      .eq('user_id', appState.userId);
+
+    if (error) throw error;
+
+    // Увеличиваем счетчик участников в команде
+    const { error: teamError } = await supabase.rpc('increment_team_members', {
+      team_id: teamId
+    });
+
+    if (teamError) throw teamError;
+
+    showSuccess("Вы успешно присоединились к команде!");
+    await loadTeams();
+    
+  } catch (error) {
+    console.error("Ошибка присоединения к команде:", error);
+    showError("Ошибка присоединения к команде");
+  } finally {
+    hideLoading();
+  }
 }
 
 async function loadAllRatings() {
