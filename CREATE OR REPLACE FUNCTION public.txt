@@ -1,0 +1,52 @@
+CREATE OR REPLACE FUNCTION exec(query text) 
+RETURNS json AS $$
+BEGIN
+  EXECUTE query;
+  RETURN json_build_object('status', 'success');
+EXCEPTION WHEN OTHERS THEN
+  RETURN json_build_object('error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TABLE user_tasks (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  task_id TEXT NOT NULL,
+  access INTEGER DEFAULT 0,
+  completed INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, task_id)
+);
+
+CREATE INDEX idx_user_tasks_user_id ON user_tasks(user_id);
+CREATE INDEX idx_user_tasks_task_id ON user_tasks(task_id);
+
+
+
+CREATE OR REPLACE FUNCTION public.create_user_tasks_table(table_name text)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Проверяем существование таблицы
+  IF NOT EXISTS (
+    SELECT FROM pg_tables 
+    WHERE schemaname = 'public' 
+    AND tablename = table_name
+  ) THEN
+    EXECUTE format('
+      CREATE TABLE %I (
+        id SERIAL PRIMARY KEY,
+        task TEXT NOT NULL,
+        access INTEGER DEFAULT 0,
+        completed INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    ', table_name);
+    
+    -- Даём права на таблицу
+    EXECUTE format('GRANT ALL PRIVILEGES ON TABLE %I TO postgres', table_name);
+    EXECUTE format('GRANT ALL PRIVILEGES ON SEQUENCE %I_id_seq TO postgres', table_name);
+  END IF;
+END;
+$$;

@@ -645,3 +645,18 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* новое тут */
+/* Добавим в конец файла */
+#connectWalletBtn i {
+  margin-right: 8px;
+}
+
+.wallet-connected {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: var(--success) !important;
+}
+
+.wallet-connected:hover {
+  background: rgba(16, 185, 129, 0.3) !important;
+}

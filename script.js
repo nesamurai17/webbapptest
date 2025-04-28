@@ -2,6 +2,23 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
+// В начале файла, после tg.enableClosingConfirmation();
+tg.ready();
+
+// Обработка данных от Telegram
+tg.onEvent('webAppDataReceived', (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'wallet_connected') {
+      appState.walletConnected = true;
+      updateUI();
+      showSuccess("Кошелек успешно привязан!");
+    }
+  } catch (error) {
+    console.error("Ошибка обработки данных:", error);
+  }
+});
+
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -19,14 +36,56 @@ const appState = {
     cash: [],
     tasks: [],
     invites: []
-  }
+  },
+  walletConnected: false
 };
+
+async function connectWallet() {
+  try {
+    if (!window.Telegram.WebApp) {
+      throw new Error("Telegram WebApp not available");
+    }
+
+    showLoading('Подключение кошелька...');
+    
+    // Запрашиваем доступ к кошельку
+    const result = await Telegram.WebApp.sendData(JSON.stringify({
+      type: "connect_wallet"
+    }));
+    
+    if (result) {
+      appState.walletConnected = true;
+      updateUI();
+      showSuccess("Кошелек успешно привязан!");
+    } else {
+      throw new Error("Wallet connection failed");
+    }
+  } catch (error) {
+    console.error("Ошибка подключения кошелька:", error);
+    showError("Не удалось подключить кошелек");
+  } finally {
+    hideLoading();
+  }
+}
+
 
 // Показываем загрузку при запуске
 showLoading('Загрузка приложения...');
 
 function updateUI() {
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
+  const walletBtn = document.getElementById("connectWalletBtn");
+  if (walletBtn) {
+    if (appState.walletConnected) {
+      walletBtn.innerHTML = '<i class="fas fa-check"></i> Кошелек привязан';
+      walletBtn.classList.add('wallet-connected');
+      walletBtn.onclick = null;
+    } else {
+      walletBtn.innerHTML = '<i class="fas fa-link"></i> Привязать кошелек';
+      walletBtn.classList.remove('wallet-connected');
+      walletBtn.onclick = connectWallet;
+    }
+  }
   
   if (tg.initDataUnsafe?.user) {
     const user = tg.initDataUnsafe.user;
@@ -768,6 +827,10 @@ function renderAllRatings() {
 async function initApp() {
   try {
     console.log("Инициализация приложения...");
+
+    if (tg.initDataUnsafe?.user?.wallet) {
+      appState.walletConnected = true;
+    }
     
     updateUI();
     await loadUserData();
