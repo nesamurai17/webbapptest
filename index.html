@@ -30,7 +30,7 @@
     <div class="card">
       <div class="card-title">
         <i class="fas fa-share-alt"></i>
-        Витрина сисек 
+        Витрина NFT
       </div>
       <p class="card-description">
         Здесь пока пусто
@@ -106,7 +106,6 @@
     </div>
 
     <div class="rating-columns">
-      <!-- Колонка по балансу -->
       <div class="rating-column">
         <div class="column-header">
           <i class="fas fa-coins"></i>
@@ -117,7 +116,6 @@
         </div>
       </div>
 
-      <!-- Колонка по заданиям -->
       <div class="rating-column">
         <div class="column-header">
           <i class="fas fa-tasks"></i>
@@ -128,7 +126,6 @@
         </div>
       </div>
 
-      <!-- Колонка по инвайтам -->
       <div class="rating-column">
         <div class="column-header">
           <i class="fas fa-user-plus"></i>
@@ -167,7 +164,7 @@
             <div class="step-title">Подпишитесь на наш канал</div>
             <div class="step-description">Подпишитесь на официальный Telegram канал</div>
           </div>
-          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-1')">
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" data-task-id="task-1" onclick="completeTaskFromLink(event, 'task-1')">
             <i class="fas fa-check"></i> GO
           </a>
         </div>
@@ -177,7 +174,7 @@
             <div class="step-title">Сделайте репост</div>
             <div class="step-description">Поделитесь последним постом в своем канале</div>
           </div>
-          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-2')">
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" data-task-id="task-2" onclick="completeTaskFromLink(event, 'task-2')">
             <i class="fas fa-check"></i> GO
           </a>
         </div>
@@ -187,7 +184,7 @@
             <div class="step-title">Пригласите друзей</div>
             <div class="step-description">Пригласите 3 друзей в бота</div>
           </div>
-          <a href="#" class="btn btn-success btn-small step-action" target="_blank" onclick="completeTaskFromLink(event, 'task-3')">
+          <a href="#" class="btn btn-success btn-small step-action" target="_blank" data-task-id="task-3" onclick="completeTaskFromLink(event, 'task-3')">
             <i class="fas fa-check"></i> GO
           </a>
         </div>
@@ -277,12 +274,12 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
-
-  <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); justify-content: center; align-items: center; flex-direction: column; z-index: 2000;">
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
     <div class="loading-spinner"></div>
     <div class="loading-text">Загрузка...</div>
   </div>
 
+  <script src="script.js"></script>
 </body>
 </html>

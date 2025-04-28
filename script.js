@@ -21,17 +21,49 @@ const appState = {
   }
 };
 
+// Показываем загрузку при запуске
+showLoading('Загрузка приложения...');
+
+function updateUI() {
+  document.getElementById("balance").textContent = appState.balance.toLocaleString();
+  
+  if (tg.initDataUnsafe?.user) {
+    const user = tg.initDataUnsafe.user;
+    document.getElementById("username").textContent = user.first_name;
+    document.getElementById("user-id").textContent = `ID: ${user.id}`;
+    
+    if (user.photo_url) {
+      document.getElementById("user-avatar").src = user.photo_url;
+    }
+  }
+}
+
+function showLoading(message = 'Загрузка...') {
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingText = loadingOverlay.querySelector('.loading-text');
+  loadingText.textContent = message;
+  loadingOverlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function hideLoading() {
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
 function startTaskTimer(taskId, callback) {
   if (appState.activeTimers[taskId]) {
     clearInterval(appState.activeTimers[taskId]);
   }
 
-  let secondsLeft = 30;
+  let secondsLeft = 60;
   const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
   
   if (!button) return;
 
-  // Сохраняем оригинальное содержимое кнопки
   const originalContent = button.innerHTML;
   
   button.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
@@ -47,11 +79,7 @@ function startTaskTimer(taskId, callback) {
       button.innerHTML = originalContent;
       button.classList.remove('timer-active');
       delete appState.activeTimers[taskId];
-      
-      // Восстанавливаем обработчик
       button.onclick = (e) => completeTaskFromLink(e, taskId);
-      
-      // Вызываем callback после завершения таймера
       if (callback) callback();
     }
   }, 1000);
@@ -59,117 +87,36 @@ function startTaskTimer(taskId, callback) {
   appState.activeTimers[taskId] = timer;
 }
 
-// Модифицируем функцию completeTaskFromLink
 async function completeTaskFromLink(event, taskId) {
   event.preventDefault();
   const url = event.target.getAttribute('href');
   
   try {
-    // Получаем blockId из taskId
     const task = appState.tasks.flatMap(b => b.tasks).find(t => t.task_id === taskId);
     if (!task) throw new Error('Task not found');
     
     const [blockId] = taskId.split('-');
     
-    // Открываем ссылку в новом окне
     if (url && url !== '#') {
       window.open(url, '_blank');
     }
     
-    // Запускаем таймер перед выполнением задания
     startTaskTimer(taskId, async () => {
-      // Показываем загрузку
       showLoading('Проверяем выполнение задания...');
       
-      // Отмечаем задание выполненным после таймера
-      await completeTask(taskId, blockId);
-      
-      // Скрываем загрузку
-      hideLoading();
+      try {
+        await completeTask(taskId, blockId);
+      } catch (error) {
+        console.error("Ошибка выполнения задания:", error);
+        showError("Ошибка выполнения задания");
+      } finally {
+        hideLoading();
+      }
     });
   } catch (error) {
     console.error("Ошибка выполнения задания:", error);
     showError("Ошибка выполнения задания");
     hideLoading();
-  }
-}
-
-// Добавляем функции для показа/скрытия загрузки
-function showLoading(message = 'Загрузка...') {
-  const loadingOverlay = document.getElementById('loadingOverlay') || createLoadingOverlay();
-  const loadingText = loadingOverlay.querySelector('.loading-text');
-  loadingText.textContent = message;
-  loadingOverlay.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-function hideLoading() {
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  if (loadingOverlay) {
-    loadingOverlay.style.display = 'none';
-    document.body.style.overflow = '';
-  }
-}
-
-function createLoadingOverlay() {
-  const overlay = document.createElement('div');
-  overlay.id = 'loadingOverlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    z-index: 2000;
-  `;
-  
-  const spinner = document.createElement('div');
-  spinner.className = 'loading-spinner';
-  spinner.style.cssText = `
-    width: 50px;
-    height: 50px;
-    border: 5px solid rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    border-top-color: var(--primary);
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  `;
-  
-  const text = document.createElement('div');
-  text.className = 'loading-text';
-  text.style.cssText = `
-    color: white;
-    font-size: 1rem;
-    max-width: 80%;
-    text-align: center;
-    word-wrap: break-word;
-  `;
-  
-  overlay.appendChild(spinner);
-  overlay.appendChild(text);
-  document.body.appendChild(overlay);
-  
-  return overlay;
-}
-
-
-function updateUI() {
-  document.getElementById("balance").textContent = appState.balance.toLocaleString();
-  
-  if (tg.initDataUnsafe?.user) {
-    const user = tg.initDataUnsafe.user;
-    document.getElementById("username").textContent = user.first_name;
-    document.getElementById("user-id").textContent = `ID: ${user.id}`;
-    
-    if (user.photo_url) {
-      document.getElementById("user-avatar").src = user.photo_url;
-    }
   }
 }
 
@@ -243,7 +190,6 @@ async function loadTasks() {
   try {
     console.log('[loadTasks] Начало загрузки заданий');
     
-    // 1. Загрузка данных из Supabase
     const { data: allTasks, error, status } = await supabase
       .from('tasks')
       .select('*')
@@ -252,15 +198,10 @@ async function loadTasks() {
     console.log(`[loadTasks] Статус запроса: ${status}`);
 
     if (error) {
-      console.error('[loadTasks] Ошибка Supabase:', {
-        message: error.message,
-        code: error.code,
-        details: error.details
-      });
+      console.error('[loadTasks] Ошибка Supabase:', error);
       throw new Error(`Database error: ${error.message}`);
     }
 
-    // 2. Проверка полученных данных
     if (!Array.isArray(allTasks)) {
       console.error('[loadTasks] Данные не являются массивом:', allTasks);
       throw new Error('Invalid data format from database');
@@ -268,7 +209,6 @@ async function loadTasks() {
 
     console.log(`[loadTasks] Получено ${allTasks.length} заданий`);
 
-    // 3. Группировка заданий по блокам
     const groupedTasks = {};
     const userTaskMap = new Map(
       appState.userTasks.map(task => [task.task_id, task])
@@ -311,11 +251,7 @@ async function loadTasks() {
       }
     });
 
-    // 4. Фильтрация выполненных блоков
     appState.tasks = Object.values(groupedTasks).filter(block => {
-      // Показываем блок, если:
-      // 1. Есть хотя бы одно задание с доступом и не выполненное
-      // 2. Или если нет доступа ни к одному заданию
       const hasAccess = block.tasks.some(task => {
         const userTask = userTaskMap.get(task.task_id);
         return userTask?.access === 1;
@@ -338,7 +274,6 @@ async function loadTasks() {
     console.error('[loadTasks] Критическая ошибка:', error);
     showError("Ошибка загрузки списка заданий");
     
-    // Создаем fallback данные для отображения
     appState.tasks = [{
       price: 0,
       reward: 0,
@@ -354,129 +289,6 @@ async function loadTasks() {
     
     renderTasks();
     return false;
-  }
-}
-
-async function updateTaskAccess(blockId) {
-  try {
-    // Получаем все task_id из этого блока
-    const { data: blockTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('task_id')
-      .like('task_id', `${blockId}-%`);
-    
-    if (tasksError) throw tasksError;
-    
-    if (blockTasks && blockTasks.length > 0) {
-      const taskIds = blockTasks.map(task => task.task_id);
-      
-      // Обновляем access для всех задач блока у текущего пользователя
-      const { error: updateError } = await supabase
-        .from('user_tasks')
-        .update({ access: 1 })
-        .eq('user_id', appState.userId)
-        .in('task_id', taskIds);
-      
-      if (updateError) throw updateError;
-      
-      // Обновляем локальное состояние
-      appState.userTasks = appState.userTasks.map(task => {
-        if (taskIds.includes(task.task_id)) {
-          return { ...task, access: 1 };
-        }
-        return task;
-      });
-      
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error("Ошибка обновления доступа к заданиям:", error);
-    throw error;
-  }
-}
-
-async function completeTask(taskId, blockId) {
-  try {
-    // Обновляем статус задания в базе данных
-    const { error: updateError } = await supabase
-      .from('user_tasks')
-      .update({ completed: 1 })
-      .eq('user_id', appState.userId)
-      .eq('task_id', taskId);
-    
-    if (updateError) throw updateError;
-
-    // Обновляем локальное состояние
-    appState.userTasks = appState.userTasks.map(task => {
-      if (task.task_id === taskId) {
-        return { ...task, completed: 1 };
-      }
-      return task;
-    });
-
-    // Проверяем, все ли задания в блоке выполнены
-    const block = appState.tasks.find(b => b.blockId === blockId);
-    if (!block) return true;
-
-    const allTasksInBlock = block.tasks || [];
-    const allCompleted = allTasksInBlock.every(t => {
-      const userTask = appState.userTasks.find(ut => ut.task_id === t.task_id);
-      return userTask?.completed === 1;
-    });
-
-    if (allCompleted) {
-      // Начисляем награду за выполнение всех заданий блока
-      if (block.reward > 0) {
-        appState.balance += block.reward;
-        updateUI();
-
-        // Обновляем баланс в базе данных
-        const { error: balanceError } = await supabase
-          .from('users')
-          .update({ cash: appState.balance })
-          .eq('user_id', appState.userId);
-        
-        if (balanceError) throw balanceError;
-
-        showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
-      }
-
-      // Перезагружаем задания, чтобы скрыть выполненный блок
-      await loadTasks();
-    } else {
-      // Если не все задания выполнены, просто обновляем отображение текущего блока
-      renderTasks();
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Ошибка выполнения задания:", error);
-    throw error;
-  }
-}
-
-async function completeTaskFromLink(event, taskId) {
-  event.preventDefault();
-  const url = event.target.getAttribute('href');
-  
-  try {
-    // Получаем blockId из taskId
-    const task = appState.tasks.flatMap(b => b.tasks).find(t => t.task_id === taskId);
-    if (!task) throw new Error('Task not found');
-    
-    const [blockId] = taskId.split('-');
-    
-    // Открываем ссылку в новом окне
-    if (url && url !== '#') {
-      window.open(url, '_blank');
-    }
-    
-    // Отмечаем задание выполненным
-    await completeTask(taskId, blockId);
-  } catch (error) {
-    console.error("Ошибка выполнения задания:", error);
-    showError("Ошибка выполнения задания");
   }
 }
 
@@ -515,7 +327,6 @@ function renderTasks() {
       <div class="task-steps">
     `;
 
-    // Проверяем, есть ли доступ к заданиям этого блока
     const hasAccess = taskBlock.tasks.some(task => {
       const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
       return userTask?.access === 1;
@@ -545,16 +356,13 @@ function renderTasks() {
         goButton.target = '_blank';
         goButton.setAttribute('data-task-id', task.task_id);
         
-        // Проверяем, есть ли активный таймер для этого задания
         if (appState.activeTimers[task.task_id]) {
-          // Если таймер активен, показываем его вместо кнопки
+          let secondsLeft = 60;
           const timer = appState.activeTimers[task.task_id];
-          let secondsLeft = parseInt(goButton.textContent.match(/\d+/)?.[0]) || 30;
           
           goButton.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
           goButton.classList.add('timer-active');
         } else {
-          // Нормальная кнопка GO
           goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
         }
         
@@ -564,7 +372,6 @@ function renderTasks() {
       blockCard.querySelector('.task-steps').appendChild(stepDiv);
     });
 
-    // Добавляем кнопку "Начать" ТОЛЬКО если доступа нет
     if (!hasAccess) {
       const startButton = document.createElement('button');
       startButton.className = 'btn btn-primary';
@@ -578,7 +385,6 @@ function renderTasks() {
       };
       blockCard.appendChild(startButton);
     } else {
-      // Добавляем сообщение о доступности
       const accessBadge = document.createElement('div');
       accessBadge.className = 'badge badge-success';
       accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
@@ -588,6 +394,96 @@ function renderTasks() {
     tasksContainer.appendChild(blockCard);
   });
 }
+
+async function updateTaskAccess(blockId) {
+  try {
+    const { data: blockTasks, error: tasksError } = await supabase
+      .from('tasks')
+      .select('task_id')
+      .like('task_id', `${blockId}-%`);
+    
+    if (tasksError) throw tasksError;
+    
+    if (blockTasks && blockTasks.length > 0) {
+      const taskIds = blockTasks.map(task => task.task_id);
+      
+      const { error: updateError } = await supabase
+        .from('user_tasks')
+        .update({ access: 1 })
+        .eq('user_id', appState.userId)
+        .in('task_id', taskIds);
+      
+      if (updateError) throw updateError;
+      
+      appState.userTasks = appState.userTasks.map(task => {
+        if (taskIds.includes(task.task_id)) {
+          return { ...task, access: 1 };
+        }
+        return task;
+      });
+      
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Ошибка обновления доступа к заданиям:", error);
+    throw error;
+  }
+}
+
+async function completeTask(taskId, blockId) {
+  try {
+    const { error: updateError } = await supabase
+      .from('user_tasks')
+      .update({ completed: 1 })
+      .eq('user_id', appState.userId)
+      .eq('task_id', taskId);
+    
+    if (updateError) throw updateError;
+
+    appState.userTasks = appState.userTasks.map(task => {
+      if (task.task_id === taskId) {
+        return { ...task, completed: 1 };
+      }
+      return task;
+    });
+
+    const block = appState.tasks.find(b => b.blockId === blockId);
+    if (!block) return true;
+
+    const allTasksInBlock = block.tasks || [];
+    const allCompleted = allTasksInBlock.every(t => {
+      const userTask = appState.userTasks.find(ut => ut.task_id === t.task_id);
+      return userTask?.completed === 1;
+    });
+
+    if (allCompleted) {
+      if (block.reward > 0) {
+        appState.balance += block.reward;
+        updateUI();
+
+        const { error: balanceError } = await supabase
+          .from('users')
+          .update({ cash: appState.balance })
+          .eq('user_id', appState.userId);
+        
+        if (balanceError) throw balanceError;
+
+        showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
+      }
+
+      await loadTasks();
+    } else {
+      renderTasks();
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Ошибка выполнения задания:", error);
+    throw error;
+  }
+}
+
 function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   const modal = document.getElementById('confirmAvvaModal');
   const textElement = document.getElementById('confirmAvvaText');
@@ -604,7 +500,6 @@ function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
       }
       
       await startTask(price, blockId);
-      // После успешного подтверждения скрываем кнопку и показываем бейдж
       startButton.style.display = 'none';
       const accessBadge = document.createElement('div');
       accessBadge.className = 'badge badge-success';
@@ -629,11 +524,9 @@ async function startTask(avvaCost, blockId) {
   }
 
   try {
-    // Сначала списываем AVVA
     appState.balance -= avvaCost;
     updateUI();
 
-    // Обновляем баланс в базе данных
     const { error: balanceError } = await supabase
       .from('users')
       .update({ cash: appState.balance })
@@ -641,17 +534,14 @@ async function startTask(avvaCost, blockId) {
 
     if (balanceError) throw balanceError;
 
-    // Обновляем доступ к заданиям блока
     await updateTaskAccess(blockId);
 
     showSuccess(`Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.`);
     
-    // Перезагружаем задания, чтобы отобразить изменения
     await loadTasks();
     
   } catch (error) {
     console.error("Ошибка:", error);
-    // Откатываем изменения в случае ошибки
     appState.balance += avvaCost;
     updateUI();
     showError("Ошибка при начале задания");
@@ -843,7 +733,6 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
-    // Экспорт функций в глобальную область видимости
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
@@ -852,9 +741,12 @@ async function initApp() {
     window.completeTaskFromLink = completeTaskFromLink;
 
     console.log("Приложение успешно инициализировано");
+    hideLoading();
   } catch (error) {
     console.error("Ошибка инициализации:", error);
     showError("Ошибка загрузки приложения: " + error.message);
+    hideLoading();
   }
 }
+
 document.addEventListener('DOMContentLoaded', initApp);

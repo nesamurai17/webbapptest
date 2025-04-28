@@ -86,6 +86,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .user-id {
@@ -95,6 +96,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .balance-card {
@@ -138,6 +140,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .card-title i {
@@ -156,6 +159,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  word-break: break-word;
 }
 
 .badge-primary {
@@ -178,6 +182,7 @@ body {
   margin: 1rem 0;
   line-height: 1.5;
   word-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Buttons */
@@ -197,6 +202,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   text-decoration: none;
+  word-break: break-word;
 }
 
 .btn-primary {
@@ -275,7 +281,8 @@ body {
 .step-content {
   flex: 1;
   min-width: 0;
-  margin-right: 3rem;
+  margin-right: 4rem;
+  word-break: break-word;
 }
 
 .step-title {
@@ -284,12 +291,14 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .step-description {
   color: var(--text-secondary);
   font-size: 0.9rem;
   word-wrap: break-word;
+  word-break: break-word;
 }
 
 .step-action {
@@ -297,6 +306,8 @@ body {
   right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
+  min-width: 80px;
+  text-align: center;
 }
 
 /* NFT cards */
@@ -339,6 +350,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .nft-description {
@@ -346,6 +358,7 @@ body {
   margin-bottom: 1rem;
   font-size: 0.9rem;
   word-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Bottom navigation */
@@ -444,6 +457,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   justify-content: center;
+  word-break: break-word;
 }
 
 .modal-text {
@@ -451,9 +465,10 @@ body {
   margin-bottom: 1.5rem;
   word-wrap: break-word;
   text-align: center;
+  word-break: break-word;
 }
 
-/* Стили для страницы рейтинга */
+/* Rating page */
 .rating-columns {
   display: flex;
   gap: 1rem;
@@ -526,6 +541,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .rating-value {
@@ -560,16 +576,27 @@ body {
   display: none;
 }
 
-/* Таймер */
+/* Timer */
 .timer-active {
   background: rgba(251, 191, 36, 0.2) !important;
   color: #fbbf24 !important;
   pointer-events: none;
 }
 
-/* Загрузка */
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* Loading overlay */
+#loadingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 2000;
 }
 
 .loading-spinner {
@@ -588,29 +615,9 @@ body {
   max-width: 80%;
   text-align: center;
   word-wrap: break-word;
-}
-
-/* Улучшаем обработку текста */
-.card-title,
-.user-name,
-.user-id,
-.step-title,
-.step-description,
-.nft-title,
-.nft-description,
-.card-description,
-.modal-text,
-.rating-user {
-  overflow-wrap: break-word;
   word-break: break-word;
-  hyphens: auto;
 }
 
-.step-content {
-  margin-right: 4rem; /* Больше места для кнопки/таймера */
-}
-
-.step-action {
-  min-width: 80px; /* Фиксированная ширина для кнопки */
-  text-align: center;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
