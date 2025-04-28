@@ -751,7 +751,7 @@ async function loadAllRatings() {
         return {
           user_id: team.team_id,
           name: captain.name || `Капитан ${team.team_id}`,
-          members: team.members || 0
+          members: team.members || team.members 
         };
       });
     }
