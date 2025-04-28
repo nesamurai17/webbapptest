@@ -491,72 +491,64 @@ async function completeTask(taskId, blockId) {
     
     if (updateError) throw updateError;
 
-    // Обновляем состояние приложения
-    appState.userTasks = appState.userTasks.map(task => {
-      if (task.task_id === taskId) {
-        return { ...task, completed: 1 };
-      }
-      return task;
-    });
+    // 2. Обновляем состояние приложения
+    appState.userTasks = appState.userTasks.map(task => 
+      task.task_id === taskId ? { ...task, completed: 1 } : task
+    );
 
+    // 3. Проверяем, все ли задания блока выполнены
     const block = appState.tasks.find(b => b.blockId === blockId);
-    if (!block) return true;
+    const allCompleted = block.tasks.every(t => 
+      appState.userTasks.find(ut => ut.task_id === t.task_id)?.completed === 1
+    );
 
-    const allTasksInBlock = block.tasks || [];
-    const allCompleted = allTasksInBlock.every(t => {
-      const userTask = appState.userTasks.find(ut => ut.task_id === t.task_id);
-      return userTask?.completed === 1;
-    });
+    if (allCompleted && block.reward > 0) {
+      // 4. Обновляем баланс и счетчик заданий
+      appState.balance += block.reward;
+      
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('team')
+        .eq('user_id', appState.userId)
+        .single();
+      
+      if (userError) throw userError;
 
-    if (allCompleted) {
-      if (block.reward > 0) {
-        appState.balance += block.reward;
-        updateUI();
-
-        // 2. Получаем данные пользователя, чтобы узнать его команду
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('team')
-          .eq('user_id', appState.userId)
-          .single();
-        
-        if (userError) throw userError;
-
-        // 3. Обновляем счетчик выполненных заданий у пользователя
-        const { error: tasksCountError } = await supabase
-          .from('users')
-          .update({ 
-            cash: appState.balance,
-            countoftasks: supabase.rpc('increment', { val: 1 }) // Увеличиваем счетчик на 1
-          })
-          .eq('user_id', appState.userId);
-        
-        if (tasksCountError) throw tasksCountError;
-
-        // 4. Если пользователь состоит в команде, увеличиваем счет команды
-        if (userData && userData.team) {
-          const { error: teamScoreError } = await supabase
-            .from('teams')
-            .update({
-              score: supabase.rpc('increment', { val: 1 }) // Увеличиваем счет команды на 1
-            })
-            .eq('team_id', userData.team);
-          
-          if (teamScoreError) throw teamScoreError;
-        }
-
-        showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
+      // 5. Увеличиваем countoftasks
+      const { error: tasksCountError } = await supabase
+        .from('users')
+        .update({ 
+          cash: appState.balance,
+          countoftasks: supabase.rpc('increment', { val: 1 })
+        })
+        .eq('user_id', appState.userId);
+      
+      if (tasksCountError) {
+        console.error("Ошибка обновления countoftasks:", tasksCountError);
+        throw tasksCountError;
       }
 
-      await loadTasks();
-      await loadAllRatings(); // Обновляем рейтинги
-    } else {
-      renderTasks();
+      // 6. Обновляем score команды
+      if (userData?.team) {
+        const { error: teamScoreError } = await supabase
+          .from('teams')
+          .update({ score: supabase.rpc('increment', { val: 1 }) })
+          .eq('team_id', userData.team);
+        
+        if (teamScoreError) {
+          console.error("Ошибка обновления score команды:", teamScoreError);
+          throw teamScoreError;
+        }
+      }
+
+      showSuccess(`Награда получена: ${block.reward} AVVA!`);
     }
 
+    await loadTasks();
+    await loadAllRatings();
     return true;
   } catch (error) {
-    console.error("Ошибка выполнения задания:", error);
+    console.error("Ошибка в completeTask:", error);
     throw error;
   }
 }
