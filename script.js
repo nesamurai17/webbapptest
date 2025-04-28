@@ -14,6 +14,7 @@ const appState = {
   tasks: [],
   userTasks: [],
   activeTimers: {},
+  timerStartTimes: {},
   ratings: {
     cash: [],
     tasks: [],
@@ -56,47 +57,83 @@ function hideLoading() {
 
 function startTaskTimer(taskId, callback) {
   if (appState.activeTimers[taskId]) {
-    clearInterval(appState.activeTimers[taskId]);
+    clearTimeout(appState.activeTimers[taskId]);
   }
 
   const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
-  
   if (!button) return;
 
   const originalContent = button.innerHTML;
-  
   button.innerHTML = '<i class="fas fa-clock"></i>';
   button.classList.add('timer-active');
   button.onclick = null;
 
+  // Сохраняем время старта таймера
+  appState.timerStartTimes[taskId] = Date.now();
+  saveTimersToStorage();
+
   const timer = setTimeout(() => {
-    delete appState.activeTimers[taskId];
-    button.innerHTML = originalContent;
-    button.classList.remove('timer-active');
-    button.onclick = (e) => completeTaskFromLink(e, taskId);
-    if (callback) callback();
+    completeTimer(taskId, button, originalContent, callback);
   }, 60000); // 60 секунд
 
   appState.activeTimers[taskId] = timer;
 }
 
-// В функции renderTasks измените часть с кнопкой GO:
-if (hasAccess && !isCompleted) {
-  const goButton = document.createElement('a');
-  goButton.className = 'btn btn-success btn-small step-action';
-  goButton.innerHTML = '<i class="fas fa-check"></i> GO';
-  goButton.href = task.url || '#';
-  goButton.target = '_blank';
-  goButton.setAttribute('data-task-id', task.task_id);
-  
-  if (appState.activeTimers[task.task_id]) {
-    goButton.innerHTML = '<i class="fas fa-clock"></i>';
-    goButton.classList.add('timer-active');
-  } else {
-    goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
+function completeTimer(taskId, button, originalContent, callback) {
+  clearTimer(taskId);
+  button.innerHTML = originalContent;
+  button.classList.remove('timer-active');
+  button.onclick = (e) => completeTaskFromLink(e, taskId);
+  if (callback) callback();
+}
+
+function clearTimer(taskId) {
+  if (appState.activeTimers[taskId]) {
+    clearTimeout(appState.activeTimers[taskId]);
   }
-  
-  stepDiv.appendChild(goButton);
+  delete appState.activeTimers[taskId];
+  delete appState.timerStartTimes[taskId];
+  saveTimersToStorage();
+}
+
+function saveTimersToStorage() {
+  localStorage.setItem('activeTimers', JSON.stringify(appState.timerStartTimes));
+}
+
+function restoreTimers() {
+  const savedTimers = localStorage.getItem('activeTimers');
+  if (!savedTimers) return;
+
+  const now = Date.now();
+  appState.timerStartTimes = JSON.parse(savedTimers);
+
+  for (const taskId in appState.timerStartTimes) {
+    const startTime = appState.timerStartTimes[taskId];
+    const elapsed = now - startTime;
+    const remaining = 60000 - elapsed;
+
+    if (remaining > 0) {
+      const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
+      if (button) {
+        button.innerHTML = '<i class="fas fa-clock"></i>';
+        button.classList.add('timer-active');
+        button.onclick = null;
+
+        appState.activeTimers[taskId] = setTimeout(() => {
+          completeTimer(taskId, button, '<i class="fas fa-check"></i> GO', () => {
+            const [blockId] = taskId.split('-');
+            completeTask(taskId, blockId);
+          });
+        }, remaining);
+      }
+    } else {
+      // Таймер уже истек, отмечаем задание выполненным
+      const [blockId] = taskId.split('-');
+      completeTask(taskId, blockId);
+      delete appState.timerStartTimes[taskId];
+    }
+  }
+  saveTimersToStorage();
 }
 
 async function completeTaskFromLink(event, taskId) {
@@ -115,7 +152,6 @@ async function completeTaskFromLink(event, taskId) {
     
     startTaskTimer(taskId, async () => {
       showLoading('Проверяем выполнение задания...');
-      
       try {
         await completeTask(taskId, blockId);
       } catch (error) {
@@ -735,7 +771,6 @@ function renderAllRatings() {
 async function initApp() {
   try {
     console.log("Инициализация приложения...");
-    console.log("User ID:", appState.userId);
     
     updateUI();
     await loadUserData();
@@ -745,6 +780,13 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
+    // Восстанавливаем таймеры
+    restoreTimers();
+
+    // Сохраняем таймеры при закрытии
+    window.addEventListener('beforeunload', saveTimersToStorage);
+
+    // Экспорт функций
     window.closeModal = closeModal;
     window.switchTab = switchTab;
     window.startTask = startTask;
