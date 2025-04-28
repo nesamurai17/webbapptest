@@ -559,3 +559,58 @@ body {
 .completed-step .step-action {
   display: none;
 }
+
+/* Таймер */
+.timer-active {
+  background: rgba(251, 191, 36, 0.2) !important;
+  color: #fbbf24 !important;
+  pointer-events: none;
+}
+
+/* Загрузка */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.loading-text {
+  color: white;
+  font-size: 1rem;
+  max-width: 80%;
+  text-align: center;
+  word-wrap: break-word;
+}
+
+/* Улучшаем обработку текста */
+.card-title,
+.user-name,
+.user-id,
+.step-title,
+.step-description,
+.nft-title,
+.nft-description,
+.card-description,
+.modal-text,
+.rating-user {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.step-content {
+  margin-right: 4rem; /* Больше места для кнопки/таймера */
+}
+
+.step-action {
+  min-width: 80px; /* Фиксированная ширина для кнопки */
+  text-align: center;
+}

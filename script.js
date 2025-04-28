@@ -13,12 +13,151 @@ const appState = {
   teams: [],
   tasks: [],
   userTasks: [],
+  activeTimers: {},
   ratings: {
     cash: [],
     tasks: [],
     invites: []
   }
 };
+
+function startTaskTimer(taskId, callback) {
+  if (appState.activeTimers[taskId]) {
+    clearInterval(appState.activeTimers[taskId]);
+  }
+
+  let secondsLeft = 30;
+  const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
+  
+  if (!button) return;
+
+  // Сохраняем оригинальное содержимое кнопки
+  const originalContent = button.innerHTML;
+  
+  button.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
+  button.classList.add('timer-active');
+  button.onclick = null;
+
+  const timer = setInterval(() => {
+    secondsLeft--;
+    button.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
+    
+    if (secondsLeft <= 0) {
+      clearInterval(timer);
+      button.innerHTML = originalContent;
+      button.classList.remove('timer-active');
+      delete appState.activeTimers[taskId];
+      
+      // Восстанавливаем обработчик
+      button.onclick = (e) => completeTaskFromLink(e, taskId);
+      
+      // Вызываем callback после завершения таймера
+      if (callback) callback();
+    }
+  }, 1000);
+
+  appState.activeTimers[taskId] = timer;
+}
+
+// Модифицируем функцию completeTaskFromLink
+async function completeTaskFromLink(event, taskId) {
+  event.preventDefault();
+  const url = event.target.getAttribute('href');
+  
+  try {
+    // Получаем blockId из taskId
+    const task = appState.tasks.flatMap(b => b.tasks).find(t => t.task_id === taskId);
+    if (!task) throw new Error('Task not found');
+    
+    const [blockId] = taskId.split('-');
+    
+    // Открываем ссылку в новом окне
+    if (url && url !== '#') {
+      window.open(url, '_blank');
+    }
+    
+    // Запускаем таймер перед выполнением задания
+    startTaskTimer(taskId, async () => {
+      // Показываем загрузку
+      showLoading('Проверяем выполнение задания...');
+      
+      // Отмечаем задание выполненным после таймера
+      await completeTask(taskId, blockId);
+      
+      // Скрываем загрузку
+      hideLoading();
+    });
+  } catch (error) {
+    console.error("Ошибка выполнения задания:", error);
+    showError("Ошибка выполнения задания");
+    hideLoading();
+  }
+}
+
+// Добавляем функции для показа/скрытия загрузки
+function showLoading(message = 'Загрузка...') {
+  const loadingOverlay = document.getElementById('loadingOverlay') || createLoadingOverlay();
+  const loadingText = loadingOverlay.querySelector('.loading-text');
+  loadingText.textContent = message;
+  loadingOverlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function hideLoading() {
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+function createLoadingOverlay() {
+  const overlay = document.createElement('div');
+  overlay.id = 'loadingOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 2000;
+  `;
+  
+  const spinner = document.createElement('div');
+  spinner.className = 'loading-spinner';
+  spinner.style.cssText = `
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  `;
+  
+  const text = document.createElement('div');
+  text.className = 'loading-text';
+  text.style.cssText = `
+    color: white;
+    font-size: 1rem;
+    max-width: 80%;
+    text-align: center;
+    word-wrap: break-word;
+  `;
+  
+  overlay.appendChild(spinner);
+  overlay.appendChild(text);
+  document.body.appendChild(overlay);
+  
+  return overlay;
+}
+
 
 function updateUI() {
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
@@ -404,7 +543,21 @@ function renderTasks() {
         goButton.innerHTML = '<i class="fas fa-check"></i> GO';
         goButton.href = task.url || '#';
         goButton.target = '_blank';
-        goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
+        goButton.setAttribute('data-task-id', task.task_id);
+        
+        // Проверяем, есть ли активный таймер для этого задания
+        if (appState.activeTimers[task.task_id]) {
+          // Если таймер активен, показываем его вместо кнопки
+          const timer = appState.activeTimers[task.task_id];
+          let secondsLeft = parseInt(goButton.textContent.match(/\d+/)?.[0]) || 30;
+          
+          goButton.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
+          goButton.classList.add('timer-active');
+        } else {
+          // Нормальная кнопка GO
+          goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
+        }
+        
         stepDiv.appendChild(goButton);
       }
       
@@ -435,7 +588,6 @@ function renderTasks() {
     tasksContainer.appendChild(blockCard);
   });
 }
-
 function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   const modal = document.getElementById('confirmAvvaModal');
   const textElement = document.getElementById('confirmAvvaText');
