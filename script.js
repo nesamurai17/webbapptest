@@ -653,41 +653,37 @@ async function startTask(avvaCost, blockId) {
 
 async function loadTeams() {
   try {
-    // showLoading('Загрузка списка команд...');
-    
-    const { data, error } = await supabase
-      .from('teams')
-      .select('team_id, score, members')
-      .order('score', { ascending: false });
+    if (!appState.userId) {
+      showError("Не удалось определить ваш ID");
+      return;
+    }
+
+    // Получаем всех пользователей, у которых team = нашему user_id
+    const { data: teamMembers, error } = await supabase
+      .from('users')
+      .select('user_id, name, photo_url, cash')
+      .eq('team', appState.userId);
 
     if (error) throw error;
     
-    if (data && data.length > 0) {
-      appState.teams = data;
+    if (teamMembers && teamMembers.length > 0) {
+      appState.teams = teamMembers.map(member => ({
+        user_id: member.user_id,
+        name: member.name || `Игрок ${member.user_id.slice(0, 4)}`,
+        photo_url: member.photo_url,
+        cash: member.cash || 0
+      }));
     } else {
-      // Если данных нет, создаем заглушку
-      appState.teams = [{
-        team_id: 'no-teams',
-        score: 0,
-        members: 0
-      }];
-      showError("Нет доступных команд");
+      appState.teams = [];
+      showError("В вашей команде пока нет участников");
     }
     
     renderTeams();
-    // hideLoading();
-    
   } catch (error) {
-    console.error("Ошибка загрузки команд:", error);
-    // Создаем заглушку при ошибке
-    appState.teams = [{
-      team_id: error,
-      score: 0,
-      members: 0
-    }];
+    console.error("Ошибка загрузки команды:", error);
+    appState.teams = [];
     renderTeams();
-    // hideLoading();
-    showError("Ошибка загрузки списка команд");
+    showError("Ошибка загрузки списка участников");
   }
 }
 
@@ -700,34 +696,58 @@ function renderTeams() {
   existingCards.forEach(card => card.remove());
 
   if (!appState.teams || appState.teams.length === 0) {
-    teamsContainer.innerHTML += '<div class="task-card"><div class="inner-2"><div class="card-title">Нет доступных команд</div></div></div>';
+    teamsContainer.innerHTML += `
+      <div class="task-card">
+        <div class="inner-2">
+          <div class="coin-balance-2">Моя команда</div>
+          <div class="frame-7">
+            <div class="card-title">У вас пока нет участников в команде</div>
+          </div>
+        </div>
+      </div>
+    `;
     return;
   }
 
-  appState.teams.forEach((team, index) => {
-    const teamCard = document.createElement('div');
-    teamCard.className = 'task-card';
-    
-    const isTopTeam = index < 3;
-    const medalIcon = isTopTeam ? 
-      `<i class="fas fa-medal" style="color: ${index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32'}"></i> ` : '';
-    
-    teamCard.innerHTML = `
+  // Добавляем заголовок
+  teamsContainer.innerHTML += `
+    <div class="task-card">
       <div class="inner-2">
-        <div class="coin-balance-2">${medalIcon}${`Команда #${team.team_id}`}</div>
+        <div class="coin-balance-2">Моя команда</div>
         <div class="frame-7">
-          <div class="card-title">Очки: ${team.score || 0}</div>
-          <div class="card-title">Участники: ${team.members || 0}</div>
+          <div class="card-title">Участники: ${appState.teams.length}</div>
         </div>
-        <div class="frame-8">
-          <button class="div-wrapper" onclick="joinTeam('${team.team_id}')">
-            <div class="text-wrapper-5">Присоединиться</div>
-          </button>
+      </div>
+    </div>
+  `;
+
+  // Добавляем карточки участников
+  appState.teams.forEach((member, index) => {
+    const memberCard = document.createElement('div');
+    memberCard.className = 'task-card';
+    
+    memberCard.innerHTML = `
+      <div class="inner-2">
+        <div class="user-info-container">
+          <div class="user-avatar">
+            <img class="image" src="${member.photo_url || 'https://via.placeholder.com/60'}" alt="User Avatar">
+            <div class="text-wrapper-2">${member.name}</div>
+          </div>
+          <div class="frame-3">
+            <div class="frame-4">
+              <div class="wallet-info">
+                <div class="coin-balance">${member.cash || 0} AVVA</div>
+              </div>
+            </div>
+            <div class="wallet-info">
+              <div class="text-wrapper-2">#${index + 1}</div>
+            </div>
+          </div>
         </div>
       </div>
     `;
     
-    teamsContainer.appendChild(teamCard);
+    teamsContainer.appendChild(memberCard);
   });
 }
 
