@@ -2,44 +2,8 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
-const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-
-
-function updateUI() {
-  document.getElementById("balance").textContent = appState.balance.toLocaleString();
-  
-  if (tg.initDataUnsafe?.user) {
-    const user = tg.initDataUnsafe.user;
-    document.getElementById("username").textContent = user.first_name;
-    document.getElementById("user-id").textContent = `ID: ${user.id}`;
-    
-    if (user.photo_url) {
-      document.getElementById("user-avatar").src = user.photo_url;
-    }
-  }
-}
-
-// function showLoading(message = 'AVVA GAME LOADING...') {
-//   const loadingOverlay = document.getElementById('loadingOverlay');
-//   // const loadingText = loadingOverlay.querySelector('.loading-text');
-  
-//   loadingText.textContent = message;
-//   loadingOverlay.style.display = 'flex';
-//   loadingOverlay.classList.remove('hidden');
-//   document.body.style.overflow = 'hidden';
-  
-//   // Добавляем анимацию пульсации для текста
-//   loadingText.style.animation = 'pulse 1.5s infinite';
-  
-//   // Запускаем анимацию прогресса
-//   // const progressBar = loadingOverlay.querySelector('.loading-progress-bar');
-//   if (progressBar) {
-//     progressBar.style.animation = 'progress 2s ease-in-out infinite, gradient 3s ease infinite';
-//   }
-// }
+// Конфигурация API для работы с Beget MySQL
+const API_URL = 'https://pisare3h.beget.tech/api.php'; // Замените на ваш реальный URL
 
 const appState = {
   balance: 0,
@@ -60,6 +24,37 @@ const appState = {
   walletBalance: 0,
   isWalletConnected: false
 };
+
+// Общие функции для работы с API
+async function fetchData(endpoint, params = {}) {
+  try {
+    const response = await fetch(`${API_URL}?action=${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...params,
+        user_id: appState.userId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`Ошибка при запросе к ${endpoint}:`, error);
+    throw error;
+  }
+}
 
 function updateUI() {
   document.getElementById("balance").textContent = `${appState.balance} AVVA`;
@@ -89,10 +84,7 @@ async function initWallet() {
         appState.walletAddress = walletAddress;
         appState.isWalletConnected = true;
         
-        const { error } = await supabase
-          .from('users')
-          .update({ wallet_address: walletAddress })
-          .eq('user_id', appState.userId);
+        const { error } = await fetchData('update_wallet', { wallet_address: walletAddress });
         
         if (!error) {
           showSuccess("TON кошелек успешно подключен!");
@@ -130,12 +122,8 @@ async function loadUserData() {
   if (!appState.userId) return;
   
   try {
-    const { data } = await supabase
-      .from('users')
-      .select('cash, wallet_address, countoftasks')
-      .eq('user_id', appState.userId)
-      .single();
-
+    const data = await fetchData('get_user_data');
+    
     if (data) {
       appState.balance = data.cash || 0;
       appState.walletAddress = data.wallet_address || null;
@@ -154,16 +142,9 @@ async function initUserTasks() {
   }
 
   try {
-    const { error: tasksError } = await supabase
-      .from('tasks')
-      .select('*')
-      .limit(1);
-    
-    if (tasksError) throw new Error("Таблица tasks не найдена");
-
+    await fetchData('check_tasks_table');
     await syncUserTasks();
     return true;
-    
   } catch (error) {
     console.error("Ошибка инициализации заданий:", error);
     showError("Ошибка загрузки заданий");
@@ -173,19 +154,9 @@ async function initUserTasks() {
 
 async function syncUserTasks() {
   try {
-    const { data: allTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('*');
+    const allTasks = await fetchData('get_all_tasks');
+    const userTasks = await fetchData('get_user_tasks');
     
-    if (tasksError) throw tasksError;
-
-    const { data: userTasks, error: userTasksError } = await supabase
-      .from('user_tasks')
-      .select('*')
-      .eq('user_id', appState.userId);
-    
-    if (userTasksError) throw userTasksError;
-
     const existingTaskIds = userTasks.map(t => t.task_id);
     const tasksToAdd = allTasks
       .filter(task => !existingTaskIds.includes(task.task_id))
@@ -197,16 +168,11 @@ async function syncUserTasks() {
       }));
 
     if (tasksToAdd.length > 0) {
-      const { error: insertError } = await supabase
-        .from('user_tasks')
-        .insert(tasksToAdd);
-      
-      if (insertError) throw insertError;
+      await fetchData('add_user_tasks', { tasks: tasksToAdd });
     }
 
     appState.userTasks = userTasks.concat(tasksToAdd);
     return true;
-    
   } catch (error) {
     console.error("Ошибка синхронизации:", error);
     throw error;
@@ -215,16 +181,8 @@ async function syncUserTasks() {
 
 async function loadTasks() {
   try {
-    const { data: allTasks, error, status } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('task_id', { ascending: true });
-
-    if (error) {
-      console.error('[loadTasks] Ошибка Supabase:', error);
-      throw new Error(`Database error: ${error.message}`);
-    }
-
+    const allTasks = await fetchData('get_all_tasks_sorted');
+    
     if (!Array.isArray(allTasks)) {
       console.error('[loadTasks] Данные не являются массивом:', allTasks);
       throw new Error('Invalid data format from database');
@@ -286,7 +244,7 @@ async function loadTasks() {
 
   } catch (error) {
     console.error('[loadTasks] Критическая ошибка:', error);
-    showError( error);
+    showError(error);
     
     // Создаем заглушку для отображения
     appState.tasks = [{
@@ -430,13 +388,12 @@ function startTaskTimer(taskId, callback) {
   button.classList.add('timer-active');
   button.onclick = null;
 
-  // Сохраняем время старта таймера
   appState.timerStartTimes[taskId] = Date.now();
   saveTimersToStorage();
 
   const timer = setTimeout(() => {
     completeTimer(taskId, button, '<div class="text-wrapper-5">Выполнить</div>', callback);
-  }, 60000); // 60 секунд
+  }, 60000);
 
   appState.activeTimers[taskId] = timer;
 }
@@ -489,7 +446,6 @@ function restoreTimers() {
         }, remaining);
       }
     } else {
-      // Таймер уже истек, отмечаем задание выполненным
       const [blockId] = taskId.split('-');
       completeTask(taskId, blockId);
       delete appState.timerStartTimes[taskId];
@@ -500,34 +456,16 @@ function restoreTimers() {
 
 async function updateTaskAccess(blockId) {
   try {
-    const { data: blockTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('task_id')
-      .like('task_id', `${blockId}-%`);
+    await fetchData('update_task_access', { block_id: blockId });
     
-    if (tasksError) throw tasksError;
+    appState.userTasks = appState.userTasks.map(task => {
+      if (task.task_id.startsWith(`${blockId}-`)) {
+        return { ...task, access: 1 };
+      }
+      return task;
+    });
     
-    if (blockTasks && blockTasks.length > 0) {
-      const taskIds = blockTasks.map(task => task.task_id);
-      
-      const { error: updateError } = await supabase
-        .from('user_tasks')
-        .update({ access: 1 })
-        .eq('user_id', appState.userId)
-        .in('task_id', taskIds);
-      
-      if (updateError) throw updateError;
-      
-      appState.userTasks = appState.userTasks.map(task => {
-        if (taskIds.includes(task.task_id)) {
-          return { ...task, access: 1 };
-        }
-        return task;
-      });
-      
-      return true;
-    }
-    return false;
+    return true;
   } catch (error) {
     console.error("Ошибка обновления доступа к заданиям:", error);
     throw error;
@@ -536,13 +474,7 @@ async function updateTaskAccess(blockId) {
 
 async function completeTask(taskId, blockId) {
   try {
-    const { error: updateError } = await supabase
-      .from('user_tasks')
-      .update({ completed: 1 })
-      .eq('user_id', appState.userId)
-      .eq('task_id', taskId);
-    
-    if (updateError) throw updateError;
+    await fetchData('complete_task', { task_id: taskId });
 
     appState.userTasks = appState.userTasks.map(task => {
       if (task.task_id === taskId) {
@@ -565,13 +497,7 @@ async function completeTask(taskId, blockId) {
         appState.balance += block.reward;
         updateUI();
 
-        const { error: balanceError } = await supabase
-          .from('users')
-          .update({ cash: appState.balance })
-          .eq('user_id', appState.userId);
-        
-        if (balanceError) throw balanceError;
-
+        await fetchData('update_balance', { cash: appState.balance });
         showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
       }
 
@@ -630,13 +556,7 @@ async function startTask(avvaCost, blockId) {
     appState.balance -= avvaCost;
     updateUI();
 
-    const { error: balanceError } = await supabase
-      .from('users')
-      .update({ cash: appState.balance })
-      .eq('user_id', appState.userId);
-
-    if (balanceError) throw balanceError;
-
+    await fetchData('update_balance', { cash: appState.balance });
     await updateTaskAccess(blockId);
 
     showSuccess(`Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.`);
@@ -658,16 +578,8 @@ async function loadTeams() {
       return;
     }
 
-    // Получаем только имена пользователей, у которых team = нашему user_id
-    const { data: teamMembers, error } = await supabase
-      .from('users')
-      .select('name, cash')
-      .eq('team', appState.userId)
-      .order('cash', { ascending: false }); // Сортируем по балансу
-
-    if (error) throw error;
-    
-    appState.teams = teamMembers || []; // Если null, используем пустой массив
+    const teamMembers = await fetchData('get_team_members');
+    appState.teams = teamMembers || [];
     
     renderTeams();
   } catch (error) {
@@ -682,10 +594,8 @@ function renderTeams() {
   const teamsContainer = document.getElementById('teams-container');
   if (!teamsContainer) return;
 
-  // Полностью очищаем контейнер
   teamsContainer.innerHTML = '';
 
-  // Добавляем заголовок
   const headerCard = document.createElement('div');
   headerCard.className = 'task-card';
   headerCard.innerHTML = `
@@ -703,7 +613,6 @@ function renderTeams() {
   `;
   teamsContainer.appendChild(headerCard);
 
-  // Если нет друзей
   if (appState.teams.length === 0) {
     const emptyCard = document.createElement('div');
     emptyCard.className = 'task-card';
@@ -718,7 +627,6 @@ function renderTeams() {
     return;
   }
 
-  // Добавляем список друзей
   appState.teams.forEach((friend, index) => {
     const friendCard = document.createElement('div');
     friendCard.className = 'task-card';
@@ -754,46 +662,13 @@ function renderTeams() {
 
 async function loadAllRatings() {
   try {
-    const { data: cashData } = await supabase
-      .from('users')
-      .select('user_id, cash, name')
-      .order('cash', { ascending: false })
-      .limit(10);
-    
-    const { data: tasksData } = await supabase
-      .from('users')
-      .select('user_id, countoftasks, name')
-      .order('countoftasks', { ascending: false })
-      .limit(10);
-    
-    const { data: topTeams } = await supabase
-      .from('teams')
-      .select('team_id, members')
-      .order('members', { ascending: false })
-      .limit(10);
-    
-    let invitesData = [];
-    if (topTeams && topTeams.length > 0) {
-      const captainIds = topTeams.map(team => team.team_id);
-      
-      const { data: captainsData } = await supabase
-        .from('users')
-        .select('user_id, name')
-        .in('user_id', captainIds);
-      
-      invitesData = topTeams.map(team => {
-        const captain = captainsData?.find(c => c.user_id === team.team_id) || {};
-        return {
-          user_id: team.team_id,
-          name: captain.name || `Капитан ${team.team_id}`,
-          members: team.members || team.members 
-        };
-      });
-    }
+    const cashData = await fetchData('get_cash_rating');
+    const tasksData = await fetchData('get_tasks_rating');
+    const invitesData = await fetchData('get_invites_rating');
     
     if (cashData) appState.ratings.cash = cashData;
     if (tasksData) appState.ratings.tasks = tasksData;
-    appState.ratings.invites = invitesData;
+    appState.ratings.invites = invitesData || [];
     
     renderAllRatings();
   } catch (error) {
@@ -861,7 +736,6 @@ function switchTab(tabName) {
   
   document.getElementById(`${tabName}-page`).classList.add('active');
   
-  // Update active tab
   document.querySelectorAll('.tab-2, .tab-3').forEach(tab => {
     tab.classList.remove('tab-2');
     tab.classList.add('tab-3');
@@ -873,7 +747,6 @@ function switchTab(tabName) {
     activeTab.classList.add('tab-2');
   }
   
-  // Update page title
   const pageTitle = document.getElementById('page-title');
   if (pageTitle) {
     const titles = {
@@ -888,6 +761,7 @@ function switchTab(tabName) {
   
   tg.HapticFeedback.impactOccurred('light');
 }
+
 
 function showReferralModal() {
   if (!appState.userId) {
