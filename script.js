@@ -668,13 +668,13 @@ async function loadTeams() {
     
     if (teamMembers && teamMembers.length > 0) {
       appState.teams = teamMembers.map(member => ({
-        user_id: member.user_id,
-        name: member.name || `Игрок ${member.user_id.slice(0, 4)}`,
+        user_id: String(member.user_id), // Гарантируем, что user_id будет строкой
+        name: member.name || `Игрок ${String(member.user_id).slice(-4)}`,
         cash: member.cash || 0
       }));
     } else {
       appState.teams = [];
-      showError("В вашей команде пока нет участников");
+      // Не показываем ошибку, если команда пустая - это нормально
     }
     
     renderTeams();
@@ -682,7 +682,7 @@ async function loadTeams() {
     console.error("Ошибка загрузки команды:", error);
     appState.teams = [];
     renderTeams();
-    showError(error);
+    showError("Ошибка загрузки списка участников");
   }
 }
 
@@ -690,57 +690,61 @@ function renderTeams() {
   const teamsContainer = document.getElementById('teams-container');
   if (!teamsContainer) return;
 
-  // Очищаем контейнер, но оставляем заголовок
-  const existingCards = teamsContainer.querySelectorAll('.task-card:not(:first-child)');
-  existingCards.forEach(card => card.remove());
-
-  if (!appState.teams || appState.teams.length === 0) {
-    teamsContainer.innerHTML += `
-      <div class="task-card">
-        <div class="inner-2">
-          <div class="coin-balance-2">Моя команда</div>
-          <div class="frame-7">
-            <div class="card-title">У вас пока нет участников в команде</div>
-            <div class="frame-8">
-              <button class="div-wrapper" onclick="showReferralModal()">
-                <div class="text-wrapper-5">Пригласить друзей</div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    return;
-  }
+  // Очищаем контейнер
+  teamsContainer.innerHTML = '';
 
   // Добавляем заголовок
-  teamsContainer.innerHTML += `
-    <div class="task-card">
-      <div class="inner-2">
-        <div class="coin-balance-2">Моя команда</div>
-        <div class="frame-7">
-          <div class="card-title">Участники: ${appState.teams.length}</div>
-        </div>
-        <div class="frame-8">
-          <button class="div-wrapper" onclick="showReferralModal()">
-            <div class="text-wrapper-5">Пригласить ещё</div>
-          </button>
-        </div>
+  const headerCard = document.createElement('div');
+  headerCard.className = 'task-card';
+  headerCard.innerHTML = `
+    <div class="inner-2">
+      <div class="coin-balance-2">Моя команда</div>
+      <div class="frame-7">
+        <div class="card-title">Участники: ${appState.teams.length}</div>
+      </div>
+      <div class="frame-8">
+        <button class="div-wrapper" onclick="showReferralModal()">
+          <div class="text-wrapper-5">Пригласить друзей</div>
+        </button>
       </div>
     </div>
   `;
+  teamsContainer.appendChild(headerCard);
+
+  if (appState.teams.length === 0) {
+    const emptyCard = document.createElement('div');
+    emptyCard.className = 'task-card';
+    emptyCard.innerHTML = `
+      <div class="inner-2">
+        <div class="frame-7">
+          <div class="card-title">У вас пока нет участников в команде</div>
+        </div>
+      </div>
+    `;
+    teamsContainer.appendChild(emptyCard);
+    return;
+  }
 
   // Добавляем карточки участников
   appState.teams.forEach((member, index) => {
     const memberCard = document.createElement('div');
     memberCard.className = 'task-card';
     
+    // Генерируем цвет на основе хеша user_id
+    const userIdStr = String(member.user_id);
+    const colorHash = [...userIdStr].reduce((hash, char) => {
+      return char.charCodeAt(0) + (hash << 6) + (hash << 16) - hash;
+    }, 0);
+    const color = `hsl(${Math.abs(colorHash % 360)}, 70%, 60%)`;
+    
     memberCard.innerHTML = `
       <div class="inner-2">
         <div class="user-info-container">
           <div class="user-avatar">
-            <div class="image" style="background-color: #${member.user_id.slice(0, 6).padEnd(6, '0')}; 
-              display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+            <div class="image" style="background-color: ${color}; 
+              display: flex; align-items: center; justify-content: center; 
+              color: white; font-weight: bold; border-radius: 50%; 
+              width: 46px; height: 46px; border: 3px solid var(--primary);">
               ${member.name.charAt(0).toUpperCase()}
             </div>
             <div class="text-wrapper-2">${member.name}</div>
