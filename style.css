@@ -14,8 +14,13 @@
 }
 
 @font-face {
-  font-family: 'GTA Russian';
-  src: url('fonts/ofont.ru_GTA Russian.ttf') format('truetype');
+  font-family: 'GTA Russian Regular';
+	src: url('../fonts/gta_russian_regular.eot'); /* IE 9 Compatibility Mode */
+	src: url('../fonts/gta_russian_regular.eot?#iefix') format('embedded-opentype'), /* IE < 9 */
+		url('../fonts/gta_russian_regular.woff2') format('woff2'), /* Super Modern Browsers */
+		url('../fonts/gta_russian_regular.woff') format('woff'), /* Firefox >= 3.6, any other modern browser */
+		url('../fonts/gta_russian_regular.ttf') format('truetype'), /* Safari, Android, iOS */
+		url('../fonts/gta_russian_regular.svg#gta_russian_regular') format('svg'); /* Chrome < 4, Legacy iOS */
   font-weight: 8500;
   font-style: normal;
   font-display: swap;

@@ -22,6 +22,28 @@ CREATE INDEX idx_user_tasks_user_id ON user_tasks(user_id);
 CREATE INDEX idx_user_tasks_task_id ON user_tasks(task_id);
 
 
+create or replace function increment(val integer)
+returns integer as $$
+begin
+  return coalesce(val, 0) + 1;
+end;
+$$ language plpgsql;
+
+
+
+
+create or replace function increment_countoftasks(user_id_param bigint)
+returns void as $$
+begin
+  update users 
+  set countoftasks = coalesce(countoftasks, 0) + 1
+  where user_id = user_id_param;
+end;
+$$ language plpgsql;
+
+
+
+
 
 CREATE OR REPLACE FUNCTION public.create_user_tasks_table(table_name text)
 RETURNS void
