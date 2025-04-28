@@ -223,24 +223,6 @@ body {
   color: var(--text-primary);
 }
 
-.energy-progress {
-  display: flex;
-  height: 14px;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  background-color: #202327;
-  border-radius: 50px;
-  overflow: hidden;
-}
-
-.rectangle {
-  height: 100%;
-  width: 72px;
-  background: var(--gradient);
-  border-radius: 0 50px 50px 0;
-}
-
 .frame-5 {
   display: flex;
   align-items: center;
@@ -302,29 +284,6 @@ body {
   display: block;
 }
 
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.tab {
-  padding: 8px 12px;
-  background: #202226;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.tab.active {
-  background: var(--gradient);
-}
-
-.tab-price {
-  font-family: var(--second-family);
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
 .cover-2 {
   display: flex;
   flex-direction: column;
@@ -357,30 +316,6 @@ body {
   align-items: center;
   gap: 10px;
   width: 100%;
-}
-
-.frame-6 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.btn {
-  all: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background-color: #25285b;
-  border-radius: 50px;
-  color: var(--text-primary);
-  font-family: var(--second-family);
-  font-size: 10px;
-  cursor: pointer;
 }
 
 .coin-balance-2 {
@@ -569,4 +504,10 @@ body {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* Иконки Font Awesome */
+.fas {
+  font-size: 1.2rem;
+  margin-right: 5px;
 }

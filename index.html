@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
   <div class="game-squad">
@@ -26,25 +27,12 @@
               <div class="frame-3">
                 <div class="frame-4">
                   <div class="wallet-info">
-                    <img class="img-2" src="img/ton-2.svg" />
-                    <div class="coin-balance" id="ton-balance">0.234</div>
-                  </div>
-                  <div class="wallet-info">
-                    <div class="coin"></div>
-                    <div class="coin-balance" id="balance">0</div>
+                    <div class="coin-balance" id="balance">0 AVVA</div>
                   </div>
                 </div>
                 <div class="wallet-info">
-                  <img class="img-2" src="img/wallet.svg" />
-                  <div id="wallet-address" class="text-wrapper-2">hygf...hdyf</div>
+                  <div id="wallet-address" class="text-wrapper-2">Не подключен</div>
                 </div>
-              </div>
-            </div>
-            <div class="energy-progress">
-              <div class="rectangle"></div>
-              <div class="frame-5">
-                <div class="coin-balance">12</div>
-                <div class="button"><img class="add" src="img/add.svg" /></div>
               </div>
             </div>
           </div>
@@ -60,33 +48,40 @@
         <div class="content-wrapper">
           <!-- Home Page -->
           <div id="home-page" class="page active">
-            <div class="tabs">
-              <div class="tab active"><div class="tab-price">Задания</div></div>
-              <div class="tab"><div class="tab-price">Команды</div></div>
-              <div class="tab"><div class="tab-price">Выполнено</div></div>
-            </div>
             <div class="cover-2">
               <div class="task-card">
                 <div class="inner-2">
-                  <div class="frame-6">
-                    <button class="btn"><div class="text-wrapper-3">X2 доход</div></button>
-                    <button class="btn"><div class="text-wrapper-3">Комьюнити</div></button>
-                    <button class="btn"><div class="text-wrapper-3">Доп задание</div></button>
-                    <button class="btn"><div class="text-wrapper-3">5 заданий</div></button>
-                  </div>
-                  <div class="coin-balance-2">ПУЛЛ 1</div>
+                  <div class="coin-balance-2">Реферальная программа</div>
                   <div class="frame-7">
-                    <div class="card-title">Стоимость</div>
-                    <p class="p"><span class="span">10 </span> <span class="text-wrapper-4">5USDT</span></p>
-                  </div>
-                  <div class="frame-7">
-                    <div class="card-title">Награда</div>
-                    <p class="coin-balance">От 20 до 100 AVVA Coins</p>
+                    <div class="card-title">Приглашайте друзей и получайте бонусы</div>
                   </div>
                   <div class="frame-8">
-                    <button class="div-wrapper" onclick="showConfirmAvvaModal(10, 20, 'block1')">
-                      <div class="text-wrapper-5">Начать</div>
+                    <button class="div-wrapper" onclick="showReferralModal()">
+                      <div class="text-wrapper-5">Создать ссылку</div>
                     </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="task-card">
+                <div class="inner-2">
+                  <div class="coin-balance-2">Витрина NFT</div>
+                  <div class="frame-7">
+                    <div class="card-title">Здесь пока пусто</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks Page -->
+          <div id="tasks-page" class="page">
+            <div class="cover-2">
+              <div class="task-card">
+                <div class="inner-2">
+                  <div class="coin-balance-2">Задания</div>
+                  <div class="frame-7">
+                    <div class="card-title">Зарабатывайте очки, выполняя задания</div>
                   </div>
                 </div>
               </div>
@@ -107,41 +102,12 @@
             </div>
           </div>
 
-          <!-- Market Page -->
-          <div id="market-page" class="page">
-            <div class="cover-2">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">NFT Маркет</div>
-                  <div class="frame-7">
-                    <div class="card-title">Покупайте и продавайте</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Редкий NFT</div>
-                  <div class="frame-7">
-                    <div class="card-title">Эксклюзивный дизайн для коллекционеров</div>
-                    <p class="p"><span class="span">150 </span> <span class="text-wrapper-4">AVVA</span></p>
-                  </div>
-                  <div class="frame-8">
-                    <button class="div-wrapper">
-                      <div class="text-wrapper-5">Купить</div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Rating Page -->
           <div id="rating-page" class="page">
             <div class="cover-2">
               <div class="task-card">
                 <div class="inner-2">
-                  <div class="coin-balance-2">Рейтинг</div>
+                  <div class="coin-balance-2">Рейтинг игроков</div>
                   <div class="frame-7">
                     <div class="card-title">Топ 10 по разным категориям</div>
                   </div>
@@ -152,6 +118,24 @@
                 <div class="inner-2">
                   <div class="coin-balance-2">По балансу</div>
                   <div id="cash-rating" class="frame-7">
+                    <div class="card-title">Загрузка...</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="task-card">
+                <div class="inner-2">
+                  <div class="coin-balance-2">По заданиям</div>
+                  <div id="tasks-rating" class="frame-7">
+                    <div class="card-title">Загрузка...</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="task-card">
+                <div class="inner-2">
+                  <div class="coin-balance-2">По инвайтам</div>
+                  <div id="invites-rating" class="frame-7">
                     <div class="card-title">Загрузка...</div>
                   </div>
                 </div>
@@ -167,33 +151,33 @@
       <div class="tabbar-2">
         <div class="tab-2" onclick="switchTab('home')">
           <div class="content-2">
-            <img class="img" src="img/game-tab.svg" />
+            <i class="fas fa-gamepad"></i>
             <div class="label">Игра</div>
+          </div>
+        </div>
+        <div class="tab-3" onclick="switchTab('tasks')">
+          <div class="content-2">
+            <i class="fas fa-tasks"></i>
+            <div class="label">Задания</div>
           </div>
         </div>
         <div class="tab-3" onclick="switchTab('teams')">
           <div class="content-2">
-            <img class="img" src="img/team-tab.svg" />
+            <i class="fas fa-users"></i>
             <div class="label">Команды</div>
           </div>
         </div>
         <div class="tab-3" onclick="switchTab('rating')">
           <div class="content-2">
-            <img class="img" src="img/runk-tab.svg" />
+            <i class="fas fa-trophy"></i>
             <div class="label">Рейтинг</div>
-          </div>
-        </div>
-        <div class="tab-3" onclick="switchTab('market')">
-          <div class="content-2">
-            <img class="img" src="img/home-tab.svg" />
-            <div class="label">Финансы</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Модальные окна остаются без изменений -->
+  <!-- Модальные окна -->
   <!-- Confirm AVVA Modal -->
   <div id="confirmAvvaModal" class="modal">
     <div class="modal-content">
