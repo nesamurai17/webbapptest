@@ -661,7 +661,7 @@ async function loadTeams() {
     // Получаем всех пользователей, у которых team = нашему user_id
     const { data: teamMembers, error } = await supabase
       .from('users')
-      .select('user_id, name, photo_url, cash')
+      .select('user_id, name, cash')
       .eq('team', appState.userId);
 
     if (error) throw error;
@@ -670,7 +670,6 @@ async function loadTeams() {
       appState.teams = teamMembers.map(member => ({
         user_id: member.user_id,
         name: member.name || `Игрок ${member.user_id.slice(0, 4)}`,
-        photo_url: member.photo_url,
         cash: member.cash || 0
       }));
     } else {
