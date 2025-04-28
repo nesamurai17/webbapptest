@@ -482,6 +482,7 @@ async function updateTaskAccess(blockId) {
 
 async function completeTask(taskId, blockId) {
   try {
+    // 1. Обновляем статус задания как выполненное
     const { error: updateError } = await supabase
       .from('user_tasks')
       .update({ completed: 1 })
@@ -490,6 +491,7 @@ async function completeTask(taskId, blockId) {
     
     if (updateError) throw updateError;
 
+    // 2. Обновляем состояние приложения
     appState.userTasks = appState.userTasks.map(task => {
       if (task.task_id === taskId) {
         return { ...task, completed: 1 };
@@ -507,6 +509,13 @@ async function completeTask(taskId, blockId) {
     });
 
     if (allCompleted) {
+      // 3. Увеличиваем счетчик выполненных заданий
+      const { error: incrementError } = await supabase.rpc('increment_countoftasks', {
+        user_id: appState.userId
+      });
+      
+      if (incrementError) throw incrementError;
+
       if (block.reward > 0) {
         appState.balance += block.reward;
         updateUI();
@@ -532,7 +541,6 @@ async function completeTask(taskId, blockId) {
     throw error;
   }
 }
-
 function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
   const modal = document.getElementById('confirmAvvaModal');
   const textElement = document.getElementById('confirmAvvaText');
