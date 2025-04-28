@@ -15,6 +15,7 @@
 <body>
   <!-- Home Page -->
   <div id="home-page" class="page active">
+
     <div class="header">
       <img id="user-avatar" src="https://via.placeholder.com/60" class="user-avatar" alt="User Avatar">
       <div class="user-info">
@@ -23,6 +24,18 @@
         <div class="balance-card">
           <i class="fas fa-coins"></i>
           <span id="balance">0</span> AVVA
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fas fa-user-plus"></i>
+            Реферальная программа
+          </div>
+          <p class="card-description">
+            Приглашайте друзей и получайте бонусы
+          </p>
+          <button class="btn btn-primary" onclick="showReferralModal()">
+            <i class="fas fa-share-alt"></i> Создать реферальную ссылку
+          </button>
         </div>
       </div>
     </div>
@@ -283,3 +296,32 @@
   <script src="script.js"></script>
 </body>
 </html>
+<!-- Добавим модальное окно для реферальной ссылки -->
+<div id="referralModal" class="modal">
+  <div class="modal-content">
+    <h3 class="modal-title">
+      <i class="fas fa-user-plus"></i>
+      Ваша реферальная ссылка
+    </h3>
+    <div class="modal-text">
+      <div class="referral-link-container">
+        <input type="text" id="referralLink" readonly class="referral-link-input">
+        <button class="btn btn-small" onclick="copyReferralLink()">
+          <i class="fas fa-copy"></i>
+        </button>
+      </div>
+      <p style="margin-top: 1rem;">Поделитесь с друзьями:</p>
+      <div class="share-buttons">
+        <button class="btn btn-small" onclick="shareToTelegram()">
+          <i class="fab fa-telegram"></i> Telegram
+        </button>
+        <button class="btn btn-small" style="margin-top: 0.5rem;" onclick="shareToOther()">
+          <i class="fas fa-share"></i> Другие способы
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="closeModal('referralModal')">
+      <i class="fas fa-check"></i> Готово
+    </button>
+  </div>
+</div>

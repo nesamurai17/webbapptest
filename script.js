@@ -19,7 +19,8 @@ const appState = {
     cash: [],
     tasks: [],
     invites: []
-  }
+  },
+  referralLink: ''
 };
 
 // Показываем загрузку при запуске
@@ -765,6 +766,62 @@ function renderAllRatings() {
   renderRatingList('invites-rating', appState.ratings.invites, 'invites');
 }
 
+
+// Добавить новые функции
+function showReferralModal() {
+  if (!appState.userId) {
+    showError("Не удалось получить ID пользователя");
+    return;
+  }
+
+  appState.referralLink = `https://t.me/testwebappaoao_bot?start=${appState.userId}`;
+  
+  const modal = document.getElementById('referralModal');
+  const linkInput = document.getElementById('referralLink');
+  linkInput.value = appState.referralLink;
+  
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
+
+function copyReferralLink() {
+  if (!appState.referralLink) return;
+  
+  navigator.clipboard.writeText(appState.referralLink)
+    .then(() => {
+      showSuccess("Ссылка скопирована в буфер обмена");
+    })
+    .catch(err => {
+      console.error("Ошибка копирования:", err);
+      showError("Не удалось скопировать ссылку");
+    });
+}
+
+function shareToTelegram() {
+  if (!appState.referralLink) return;
+  
+  const text = `Присоединяйся к игре AVVA через мою реферальную ссылку: ${appState.referralLink}`;
+  const url = `https://t.me/share/url?url=${encodeURIComponent(appState.referralLink)}&text=${encodeURIComponent(text)}`;
+  
+  window.open(url, '_blank');
+}
+
+function shareToOther() {
+  if (!appState.referralLink) return;
+  
+  if (navigator.share) {
+    navigator.share({
+      title: 'Присоединяйся к AVVA Game',
+      text: 'Играй и зарабатывай вместе со мной!',
+      url: appState.referralLink
+    }).catch(err => {
+      console.error("Ошибка sharing API:", err);
+    });
+  } else {
+    copyReferralLink();
+  }
+}
+
 async function initApp() {
   try {
     console.log("Инициализация приложения...");
@@ -790,6 +847,10 @@ async function initApp() {
     window.showTaskDetails = showTaskDetails;
     window.showConfirmAvvaModal = showConfirmAvvaModal;
     window.completeTaskFromLink = completeTaskFromLink;
+    window.showReferralModal = showReferralModal;
+    window.copyReferralLink = copyReferralLink;
+    window.shareToTelegram = shareToTelegram;
+    window.shareToOther = shareToOther;
 
     console.log("Приложение успешно инициализировано");
     hideLoading();
