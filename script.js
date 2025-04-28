@@ -682,7 +682,7 @@ async function loadTeams() {
     console.error("Ошибка загрузки команды:", error);
     appState.teams = [];
     renderTeams();
-    showError("Ошибка загрузки списка участников");
+    showError(error);
   }
 }
 
