@@ -244,6 +244,14 @@ body {
   width: auto;
 }
 
+.btn-text {
+  display: inline-block;
+}
+
+.timer-active .btn-text {
+  display: none;
+}
+
 /* Task details */
 .task-steps {
   margin: 1.5rem 0;
@@ -581,8 +589,24 @@ body {
   background: rgba(251, 191, 36, 0.2) !important;
   color: #fbbf24 !important;
   pointer-events: none;
+  min-width: 40px !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
+.timer-active i {
+  margin: 0 !important;
+}
+
+.step-action {
+  min-width: 80px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3rem;
+}
 /* Loading overlay */
 #loadingOverlay {
   position: fixed;

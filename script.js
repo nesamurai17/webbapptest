@@ -59,32 +59,44 @@ function startTaskTimer(taskId, callback) {
     clearInterval(appState.activeTimers[taskId]);
   }
 
-  let secondsLeft = 60;
   const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
   
   if (!button) return;
 
   const originalContent = button.innerHTML;
   
-  button.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
+  button.innerHTML = '<i class="fas fa-clock"></i>';
   button.classList.add('timer-active');
   button.onclick = null;
 
-  const timer = setInterval(() => {
-    secondsLeft--;
-    button.innerHTML = `<i class="fas fa-clock"></i> ${secondsLeft}s`;
-    
-    if (secondsLeft <= 0) {
-      clearInterval(timer);
-      button.innerHTML = originalContent;
-      button.classList.remove('timer-active');
-      delete appState.activeTimers[taskId];
-      button.onclick = (e) => completeTaskFromLink(e, taskId);
-      if (callback) callback();
-    }
-  }, 1000);
+  const timer = setTimeout(() => {
+    delete appState.activeTimers[taskId];
+    button.innerHTML = originalContent;
+    button.classList.remove('timer-active');
+    button.onclick = (e) => completeTaskFromLink(e, taskId);
+    if (callback) callback();
+  }, 60000); // 60 секунд
 
   appState.activeTimers[taskId] = timer;
+}
+
+// В функции renderTasks измените часть с кнопкой GO:
+if (hasAccess && !isCompleted) {
+  const goButton = document.createElement('a');
+  goButton.className = 'btn btn-success btn-small step-action';
+  goButton.innerHTML = '<i class="fas fa-check"></i> GO';
+  goButton.href = task.url || '#';
+  goButton.target = '_blank';
+  goButton.setAttribute('data-task-id', task.task_id);
+  
+  if (appState.activeTimers[task.task_id]) {
+    goButton.innerHTML = '<i class="fas fa-clock"></i>';
+    goButton.classList.add('timer-active');
+  } else {
+    goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
+  }
+  
+  stepDiv.appendChild(goButton);
 }
 
 async function completeTaskFromLink(event, taskId) {
