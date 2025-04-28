@@ -482,6 +482,7 @@ async function updateTaskAccess(blockId) {
 
 async function completeTask(taskId, blockId) {
   try {
+    // 1. Помечаем задание как выполненное
     const { error: updateError } = await supabase
       .from('user_tasks')
       .update({ completed: 1 })
@@ -490,6 +491,7 @@ async function completeTask(taskId, blockId) {
     
     if (updateError) throw updateError;
 
+    // Обновляем состояние приложения
     appState.userTasks = appState.userTasks.map(task => {
       if (task.task_id === taskId) {
         return { ...task, completed: 1 };
@@ -511,17 +513,43 @@ async function completeTask(taskId, blockId) {
         appState.balance += block.reward;
         updateUI();
 
-        const { error: balanceError } = await supabase
+        // 2. Получаем данные пользователя, чтобы узнать его команду
+        const { data: userData, error: userError } = await supabase
           .from('users')
-          .update({ cash: appState.balance })
+          .select('team')
+          .eq('user_id', appState.userId)
+          .single();
+        
+        if (userError) throw userError;
+
+        // 3. Обновляем счетчик выполненных заданий у пользователя
+        const { error: tasksCountError } = await supabase
+          .from('users')
+          .update({ 
+            cash: appState.balance,
+            countoftasks: supabase.rpc('increment', { val: 1 }) // Увеличиваем счетчик на 1
+          })
           .eq('user_id', appState.userId);
         
-        if (balanceError) throw balanceError;
+        if (tasksCountError) throw tasksCountError;
+
+        // 4. Если пользователь состоит в команде, увеличиваем счет команды
+        if (userData && userData.team) {
+          const { error: teamScoreError } = await supabase
+            .from('teams')
+            .update({
+              score: supabase.rpc('increment', { val: 1 }) // Увеличиваем счет команды на 1
+            })
+            .eq('team_id', userData.team);
+          
+          if (teamScoreError) throw teamScoreError;
+        }
 
         showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
       }
 
       await loadTasks();
+      await loadAllRatings(); // Обновляем рейтинги
     } else {
       renderTasks();
     }
@@ -711,20 +739,52 @@ async function loadUserData() {
 
 async function loadAllRatings() {
   try {
+    // Рейтинг по балансу
     const { data: cashData } = await supabase
       .from('users')
       .select('user_id, cash, name')
       .order('cash', { ascending: false })
       .limit(10);
     
+    // Рейтинг по заданиям
     const { data: tasksData } = await supabase
       .from('users')
       .select('user_id, countoftasks, name')
       .order('countoftasks', { ascending: false })
       .limit(10);
     
-    const invitesData = [];
+    // Рейтинг по инвайтам (новый подход)
+    // 1. Сначала получаем топ команд по количеству участников
+    const { data: topTeams } = await supabase
+      .from('teams')
+      .select('team_id, members')
+      .order('members', { ascending: false })
+      .limit(10);
     
+    // 2. Получаем информацию о капитанах этих команд
+    let invitesData = [];
+    if (topTeams && topTeams.length > 0) {
+      // Собираем ID капитанов
+      const captainIds = topTeams.map(team => team.team_id);
+      
+      // Получаем данные капитанов
+      const { data: captainsData } = await supabase
+        .from('users')
+        .select('user_id, name')
+        .in('user_id', captainIds);
+      
+      // Сопоставляем данные капитанов с командами
+      invitesData = topTeams.map(team => {
+        const captain = captainsData?.find(c => c.user_id === team.team_id) || {};
+        return {
+          user_id: team.team_id,
+          name: captain.name || `Капитан ${team.team_id}`,
+          members: team.members || 0
+        };
+      });
+    }
+    
+    // Обновляем состояние приложения
     if (cashData) appState.ratings.cash = cashData;
     if (tasksData) appState.ratings.tasks = tasksData;
     appState.ratings.invites = invitesData;
@@ -751,12 +811,17 @@ function renderRatingList(elementId, data, valueField) {
     const item = document.createElement('div');
     item.className = 'rating-item';
     
-    const userName = user.name || `Игрок ${user.user_id.slice(0, 4)}`;
+    const userName = user.name || `Игрок ${user.user_id?.slice(0, 4) || '---'}`;
+    
+    // Для рейтинга по инвайтам добавляем иконку людей
+    const valueContent = elementId === 'invites-rating' 
+      ? `<i class="fas fa-users"></i> ${user[valueField] || 0}`
+      : user[valueField] || 0;
     
     item.innerHTML = `
       <div class="rating-position">${index + 1}</div>
       <div class="rating-user" title="${userName}">${userName}</div>
-      <div class="rating-value">${user[valueField] || 0}</div>
+      <div class="rating-value">${valueContent}</div>
     `;
     
     container.appendChild(item);
