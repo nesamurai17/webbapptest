@@ -510,9 +510,21 @@ async function completeTask(taskId, blockId) {
 
     if (allCompleted) {
       // 3. Увеличиваем счетчик выполненных заданий
-      const { error: incrementError } = await supabase.rpc('increment_countoftasks', {
-        user_id: appState.userId
-      });
+      // Вместо RPC используем обычный запрос
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('countoftasks')
+        .eq('user_id', appState.userId)
+        .single();
+      
+      if (userError) throw userError;
+
+      const currentCount = userData.countoftasks || 0;
+      
+      const { error: incrementError } = await supabase
+        .from('users')
+        .update({ countoftasks: currentCount + 1 })
+        .eq('user_id', appState.userId);
       
       if (incrementError) throw incrementError;
 
@@ -538,6 +550,7 @@ async function completeTask(taskId, blockId) {
     return true;
   } catch (error) {
     console.error("Ошибка выполнения задания:", error);
+    showError("Ошибка выполнения задания: " + error.message);
     throw error;
   }
 }
