@@ -43,19 +43,126 @@ function updateUI() {
   }
 }
 
-function showLoading(message = 'Загрузка...') {
+function showLoading(message = 'AVVA GAME LOADING...') {
   const loadingOverlay = document.getElementById('loadingOverlay');
   const loadingText = loadingOverlay.querySelector('.loading-text');
+  
   loadingText.textContent = message;
   loadingOverlay.style.display = 'flex';
+  loadingOverlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  
+  // Добавляем анимацию пульсации для текста
+  loadingText.style.animation = 'pulse 1.5s infinite';
+  
+  // Запускаем анимацию прогресса
+  const progressBar = loadingOverlay.querySelector('.loading-progress-bar');
+  if (progressBar) {
+    progressBar.style.animation = 'progress 2s ease-in-out infinite, gradient 3s ease infinite';
+  }
+}
+
+async function initWallet() {
+  try {
+      // Проверяем, доступен ли TonProvider
+      if (window.ton) {
+          const accounts = await window.ton.send("ton_requestAccounts");
+          
+          if (accounts && accounts.length > 0) {
+              const walletAddress = accounts[0];
+              appState.walletAddress = walletAddress;
+              appState.isWalletConnected = true;
+              
+              // Сохраняем адрес кошелька в Supabase
+              const { error } = await supabase
+                  .from('users')
+                  .update({ wallet_address: walletAddress })
+                  .eq('user_id', appState.userId);
+              
+              if (!error) {
+                  showSuccess("TON кошелек успешно подключен!");
+                  
+                  // Обновляем UI
+                  document.getElementById("wallet-info").innerHTML = `
+                      <div class="wallet-connected">
+                          <i class="fas fa-check-circle"></i> Подключен: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}
+                      </div>
+                      <button class="btn btn-secondary" onclick="getWalletBalance()">
+                          <i class="fas fa-sync-alt"></i> Проверить баланс
+                      </button>
+                  `;
+                  
+                  // Получаем текущий баланс
+                  await getWalletBalance();
+              } else {
+                  showError("Ошибка сохранения кошелька");
+              }
+          } else {
+              showError("Не удалось получить адрес кошелька");
+          }
+      } else {
+          showError("TON Provider не обнаружен. Установите TonWallet или другую поддерживаемую программу.");
+      }
+  } catch (error) {
+      console.error("Ошибка подключения кошелька:", error);
+      showError("Ошибка подключения кошелька");
+  }
+}
+
+async function getWalletBalance() {
+  if (!appState.walletAddress) return;
+  
+  try {
+      showLoading("Проверка баланса...");
+      
+      // Получаем баланс через TonProvider
+      const balance = await window.ton.send("ton_getBalance", { address: appState.walletAddress });
+      appState.walletBalance = balance;
+      
+      // Обновляем UI
+      document.getElementById("wallet-info").innerHTML = `
+          <div class="wallet-connected">
+              <i class="fas fa-check-circle"></i> Подключен: ${appState.walletAddress.slice(0, 6)}...${appState.walletAddress.slice(-4)}
+          </div>
+          <div class="wallet-balance">
+              <i class="fas fa-coins"></i> Баланс: ${balance / 10**9} TON
+          </div>
+          <button class="btn btn-primary" onclick="sendTonPayment()">
+              <i class="fas fa-paper-plane"></i> Пополнить AVVA
+          </button>
+      `;
+      
+      hideLoading();
+  } catch (error) {
+      console.error("Ошибка получения баланса:", error);
+      showError("Ошибка получения баланса");
+      hideLoading();
+  }
+}
+
+async function sendTonPayment() {
+  if (!appState.walletAddress) return;
+  
+  try {
+      // Здесь можно реализовать логику отправки TON
+      // Например, открыть модальное окно для ввода суммы
+      const modal = document.getElementById('tonPaymentModal');
+      modal.classList.add('active');
+      tg.HapticFeedback.impactOccurred('light');
+  } catch (error) {
+      console.error("Ошибка отправки платежа:", error);
+      showError("Ошибка отправки платежа");
+  }
 }
 
 function hideLoading() {
   const loadingOverlay = document.getElementById('loadingOverlay');
   if (loadingOverlay) {
-    loadingOverlay.style.display = 'none';
-    document.body.style.overflow = '';
+    loadingOverlay.classList.add('hidden');
+    setTimeout(() => {
+      loadingOverlay.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 500); // Соответствует длительности анимации исчезновения
   }
 }
 

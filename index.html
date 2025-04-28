@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AVVA Game</title>
+  <link rel="preload" href="fonts/ofont.ru_GTA Russian.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -15,17 +16,18 @@
 <body>
   <!-- Home Page -->
   <div id="home-page" class="page active">
-
+    <div class="big-title">
+      ИГРА
+    </div>
     <div class="header">
       <img id="user-avatar" src="https://via.placeholder.com/60" class="user-avatar" alt="User Avatar">
       <div class="user-info">
-        <div class="user-name" id="username">Загрузка...</div>
+        <div class="user-name1" id="username">Загрузка...</div>
         <div class="user-id" id="user-id">ID: ---</div>
         <div class="balance-card">
           <i class="fas fa-coins"></i>
           <span id="balance">0</span> AVVA
         </div>
-        <!-- В home-page после balance-card -->
         <div class="card" id="wallet-card">
           <div class="card-title">
             <i class="fas fa-wallet"></i>
@@ -40,7 +42,7 @@
             </button>
           </div>
         </div>
-        <div class="card">
+        <!-- <div class="card">
           <div class="card-title">
             <i class="fas fa-user-plus"></i>
             Реферальная программа
@@ -51,8 +53,21 @@
           <button class="btn btn-primary" onclick="showReferralModal()">
             <i class="fas fa-share-alt"></i> Создать реферальную ссылку
           </button>
-        </div>
+        </div> -->
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-user-plus"></i>
+        Реферальная программа
+      </div>
+      <p class="card-description">
+        Приглашайте друзей и получайте бонусы
+      </p>
+      <button class="btn btn-primary" onclick="showReferralModal()">
+        <i class="fas fa-share-alt"></i> Создать реферальную ссылку
+      </button>
     </div>
 
     <div class="card">
@@ -304,31 +319,63 @@
 
   <!-- Loading Overlay -->
   <div id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Загрузка...</div>
+    <div class="loading-content">
+      <img src="5221975054596828721.jpg" class="loading-image" alt="Loading">
+      <div class="loading-text">AVVA GAME LOADING...</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar"></div>
+      </div>
+      <div class="loading-subtext">Пожалуйста, подождите...</div>
+    </div>
   </div>
+
+  <!-- Referral Modal -->
+  <div id="referralModal" class="modal">
+    <div class="modal-content">
+      <h3 class="modal-title">
+        <i class="fas fa-user-plus"></i>
+        Ваша реферальная ссылка
+      </h3>
+      <div class="modal-text">
+        <div class="referral-link-container">
+          <input type="text" id="referralLink" readonly class="referral-link-input">
+          <button class="btn btn-small" onclick="copyReferralLink()">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+        <p style="margin-top: 1rem;">Поделитесь с друзьями:</p>
+      </div>
+      <button class="btn btn-primary" onclick="closeModal('referralModal')">
+        <i class="fas fa-check"></i> Готово
+      </button>
+    </div>
+  </div>
+
+  <!-- TON Payment Modal -->
+<div id="tonPaymentModal" class="modal">
+  <div class="modal-content">
+      <h3 class="modal-title">
+          <i class="fas fa-paper-plane"></i>
+          Пополнение баланса AVVA
+      </h3>
+      <div class="modal-text">
+          <div class="input-group">
+              <label for="tonAmount">Сумма в TON:</label>
+              <input type="number" id="tonAmount" min="1" step="0.1" placeholder="10.0">
+          </div>
+          <p class="small-text">1 TON = 1 AVVA</p>
+      </div>
+      <div class="btn-group">
+          <button class="btn btn-secondary" onclick="closeModal('tonPaymentModal')">
+              <i class="fas fa-times"></i> Отмена
+          </button>
+          <button class="btn btn-primary" onclick="confirmTonPayment()">
+              <i class="fas fa-check"></i> Подтвердить
+          </button>
+      </div>
+  </div>
+</div>
 
   <script src="script.js"></script>
 </body>
 </html>
-<!-- Добавим модальное окно для реферальной ссылки -->
-<div id="referralModal" class="modal">
-  <div class="modal-content">
-    <h3 class="modal-title">
-      <i class="fas fa-user-plus"></i>
-      Ваша реферальная ссылка
-    </h3>
-    <div class="modal-text">
-      <div class="referral-link-container">
-        <input type="text" id="referralLink" readonly class="referral-link-input">
-        <button class="btn btn-small" onclick="copyReferralLink()">
-          <i class="fas fa-copy"></i>
-        </button>
-      </div>
-      <p style="margin-top: 1rem;">Поделитесь с друзьями:</p>
-    </div>
-    <button class="btn btn-primary" onclick="closeModal('referralModal')">
-      <i class="fas fa-check"></i> Готово
-    </button>
-  </div>
-</div>
