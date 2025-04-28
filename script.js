@@ -1,7 +1,6 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
-tg.ready();
 
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
@@ -20,124 +19,12 @@ const appState = {
     cash: [],
     tasks: [],
     invites: []
-  },
-  walletConnected: false,
-  walletAddress: null
+  }
 };
 
 // Показываем загрузку при запуске
 showLoading('Загрузка приложения...');
 
-// Обработка входящих данных от Telegram
-tg.onEvent('webAppDataReceived', (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    console.log('Received wallet data:', data);
-    
-    if (data.type === 'wallet_connected') {
-      appState.walletConnected = true;
-      appState.walletAddress = data.address;
-      updateUI();
-      showSuccess("Кошелек успешно привязан!");
-      saveWalletState();
-    } else if (data.type === 'wallet_error') {
-      showError(data.message || "Ошибка при подключении кошелька");
-    }
-  } catch (error) {
-    console.error("Ошибка обработки данных:", error);
-    showError("Ошибка обработки ответа от кошелька");
-  }
-});
-
-// Сохранение состояния кошелька в localStorage
-function saveWalletState() {
-  localStorage.setItem('walletState', JSON.stringify({
-    connected: appState.walletConnected,
-    address: appState.walletAddress
-  }));
-}
-
-// Загрузка состояния кошелька из localStorage
-function loadWalletState() {
-  const savedState = localStorage.getItem('walletState');
-  if (savedState) {
-    try {
-      const state = JSON.parse(savedState);
-      appState.walletConnected = state.connected;
-      appState.walletAddress = state.address;
-    } catch (e) {
-      console.error("Ошибка загрузки состояния кошелька:", e);
-    }
-  }
-}
-
-// Подключение кошелька Telegram
-async function connectWallet() {
-  try {
-    showLoading('Подключение кошелька...');
-    
-    // Проверка поддержки кошелька
-    if (!window.Telegram.WebApp?.sendData) {
-      throw new Error("Функция кошелька недоступна в этом клиенте Telegram");
-    }
-    
-    // Проверка минимальной версии Telegram
-    if (!Telegram.WebApp.isVersionAtLeast('6.4')) {
-      throw new Error("Обновите Telegram до версии 6.4+ для доступа к кошельку");
-    }
-
-    // Отправляем запрос
-    const requestId = Date.now();
-    const result = await Telegram.WebApp.sendData(JSON.stringify({
-      type: "connect_wallet",
-      request_id: requestId,
-      user_id: appState.userId
-    }));
-    
-    // Если пользователь отменил запрос
-    if (result === false) {
-      // Не показываем ошибку, просто выходим
-      hideLoading();
-      return;
-    }
-
-    // Ожидаем ответа через webAppDataReceived
-    
-  } catch (error) {
-    console.error("Ошибка подключения кошелька:", error);
-    
-    // Определяем тип ошибки для пользователя
-    let errorMessage;
-    switch(true) {
-      case error.message.includes("недоступна"):
-        errorMessage = "Функция кошелька недоступна в этом клиенте";
-        break;
-      case error.message.includes("Обновите"):
-        errorMessage = error.message;
-        break;
-      default:
-        errorMessage = "Ошибка при подключении кошелька";
-    }
-    
-    // Показываем ошибку только если это не отмена
-    if (!error.message.includes("отклонил")) {
-      showError(errorMessage);
-    }
-  } finally {
-    hideLoading();
-  }
-}
-
-// Отключение кошелька
-function disconnectWallet() {
-  appState.walletConnected = false;
-  appState.walletAddress = null;
-  localStorage.removeItem('walletState');
-  updateUI();
-  showSuccess("Кошелек успешно отключен");
-}
-
-// Обновление интерфейса
 function updateUI() {
   document.getElementById("balance").textContent = appState.balance.toLocaleString();
   
@@ -150,53 +37,6 @@ function updateUI() {
       document.getElementById("user-avatar").src = user.photo_url;
     }
   }
-
-  const walletBtn = document.getElementById("connectWalletBtn");
-  if (walletBtn) {
-    if (appState.walletConnected) {
-      walletBtn.innerHTML = `<i class="fas fa-check"></i> Кошелек: ${shortenAddress(appState.walletAddress)}`;
-      walletBtn.classList.add('wallet-connected');
-      walletBtn.onclick = () => {
-        showConfirmModal(
-          "Отключить кошелек?",
-          `Текущий адрес: ${appState.walletAddress}`,
-          disconnectWallet
-        );
-      };
-    } else {
-      walletBtn.innerHTML = '<i class="fas fa-link"></i> Привязать кошелек';
-      walletBtn.classList.remove('wallet-connected');
-      walletBtn.onclick = connectWallet;
-    }
-    
-    // Показываем/скрываем кнопку в зависимости от поддержки кошелька
-    walletBtn.style.display = Telegram.WebApp.isVersionAtLeast('6.4') && 
-                             Telegram.WebApp.sendData ? 'flex' : 'none';
-  }
-}
-
-// Сокращение адреса кошелька для отображения
-function shortenAddress(address) {
-  if (!address) return '';
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-// Модальное окно подтверждения
-function showConfirmModal(title, message, confirmAction) {
-  const modal = document.getElementById('confirmAvvaModal');
-  const textElement = document.getElementById('confirmAvvaText');
-  
-  document.getElementById('confirmAvvaModalTitle').textContent = title;
-  textElement.innerHTML = message;
-  
-  const button = document.getElementById('confirmAvvaBtn');
-  button.onclick = function() {
-    confirmAction();
-    closeModal('confirmAvvaModal');
-  };
-  
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
 }
 
 function showLoading(message = 'Загрузка...') {
@@ -929,7 +769,6 @@ async function initApp() {
   try {
     console.log("Инициализация приложения...");
     
-    loadWalletState();
     updateUI();
     await loadUserData();
     await initUserTasks();
@@ -938,7 +777,10 @@ async function initApp() {
     await loadAllRatings();
     switchTab('home');
 
+    // Восстанавливаем таймеры
     restoreTimers();
+
+    // Сохраняем таймеры при закрытии
     window.addEventListener('beforeunload', saveTimersToStorage);
 
     // Экспорт функций
@@ -948,7 +790,6 @@ async function initApp() {
     window.showTaskDetails = showTaskDetails;
     window.showConfirmAvvaModal = showConfirmAvvaModal;
     window.completeTaskFromLink = completeTaskFromLink;
-    window.connectWallet = connectWallet;
 
     console.log("Приложение успешно инициализировано");
     hideLoading();
