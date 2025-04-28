@@ -2,15 +2,13 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
-// Конфигурация Supabase
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdjhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-// Состояние приложения
 const appState = {
   balance: 0,
-  userId: tg.initDataUnsafe?.user?.id || Math.random().toString(36).substring(2, 9),
+  userId: tg.initDataUnsafe?.user?.id || null,
   currentTask: null,
   teams: [],
   tasks: [],
@@ -24,110 +22,105 @@ const appState = {
   },
   referralLink: '',
   walletAddress: null,
+  walletBalance: 0,
   isWalletConnected: false
 };
 
-// Основная функция инициализации
-async function initApp() {
-  try {
-    updateUI();
-    await Promise.all([
-      loadUserData(),
-      loadTeams(),
-      loadAllRatings()
-    ]);
-    
-    switchTab('home');
-    restoreTimers();
-    setupEventListeners();
-    
-  } catch (error) {
-    console.error("Ошибка инициализации:", error);
-    showError("Ошибка загрузки приложения");
-  }
+// Показываем загрузку при запуске
+function showLoading(message = 'Загрузка...') {
+  // Можно добавить реализацию при необходимости
 }
 
-// Настройка обработчиков событий
-function setupEventListeners() {
-  window.addEventListener('beforeunload', saveTimersToStorage);
-  
-  // Глобальные функции
-  window.closeModal = closeModal;
-  window.switchTab = switchTab;
-  window.showConfirmAvvaModal = showConfirmAvvaModal;
-  window.showReferralModal = showReferralModal;
-  window.copyReferralLink = copyReferralLink;
-  window.shareToTelegram = shareToTelegram;
+function hideLoading() {
+  // Можно добавить реализацию при необходимости
 }
 
-// Обновление интерфейса
 function updateUI() {
-  const balanceElement = document.getElementById("balance");
-  if (balanceElement) balanceElement.textContent = appState.balance.toFixed(2) + " AVVA";
+  document.getElementById("balance").textContent = `${appState.balance} AVVA`;
   
   if (tg.initDataUnsafe?.user) {
     const user = tg.initDataUnsafe.user;
-    const usernameElement = document.getElementById("username");
-    if (usernameElement) {
-      usernameElement.textContent = user.first_name || "Пользователь";
-    }
+    document.getElementById("username").textContent = user.first_name;
     
     if (user.photo_url) {
-      const avatarElement = document.getElementById("user-avatar");
-      if (avatarElement) avatarElement.src = user.photo_url;
+      document.getElementById("user-avatar").src = user.photo_url;
     }
   }
-  
-  // Обновление адреса кошелька
-  const walletAddressElement = document.getElementById("wallet-address");
-  if (walletAddressElement) {
-    if (appState.walletAddress) {
-      walletAddressElement.textContent = `${appState.walletAddress.substring(0, 4)}...${appState.walletAddress.substring(appState.walletAddress.length - 4)}`;
-    } else {
-      walletAddressElement.textContent = "Не подключен";
-    }
+
+  if (appState.walletAddress) {
+    const shortAddress = `${appState.walletAddress.substring(0, 4)}...${appState.walletAddress.substring(appState.walletAddress.length - 4)}`;
+    document.getElementById("wallet-address").textContent = shortAddress;
   }
 }
 
-// Загрузка данных пользователя
+async function initWallet() {
+  try {
+    if (window.ton) {
+      const accounts = await window.ton.send("ton_requestAccounts");
+      
+      if (accounts && accounts.length > 0) {
+        const walletAddress = accounts[0];
+        appState.walletAddress = walletAddress;
+        appState.isWalletConnected = true;
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ wallet_address: walletAddress })
+          .eq('user_id', appState.userId);
+        
+        if (!error) {
+          showSuccess("TON кошелек успешно подключен!");
+          updateUI();
+          await getWalletBalance();
+        } else {
+          showError("Ошибка сохранения кошелька");
+        }
+      } else {
+        showError("Не удалось получить адрес кошелька");
+      }
+    } else {
+      showError("TON Provider не обнаружен. Установите TonWallet или другую поддерживаемую программу.");
+    }
+  } catch (error) {
+    console.error("Ошибка подключения кошелька:", error);
+    showError("Ошибка подключения кошелька");
+  }
+}
+
+async function getWalletBalance() {
+  if (!appState.walletAddress) return;
+  
+  try {
+    const balance = await window.ton.send("ton_getBalance", { address: appState.walletAddress });
+    appState.walletBalance = balance;
+    updateUI();
+  } catch (error) {
+    console.error("Ошибка получения баланса:", error);
+    showError("Ошибка получения баланса");
+  }
+}
+
 async function loadUserData() {
   if (!appState.userId) return;
   
   try {
-    // Проверяем существование пользователя
-    let { data: userData } = await supabase
+    const { data } = await supabase
       .from('users')
       .select('cash, wallet_address')
       .eq('user_id', appState.userId)
       .single();
 
-    // Если пользователя нет - создаем
-    if (!userData) {
-      const { data: newUser } = await supabase
-        .from('users')
-        .insert([{
-          user_id: appState.userId,
-          cash: 0,
-          name: tg.initDataUnsafe?.user?.first_name || 'Новый пользователь'
-        }])
-        .select()
-        .single();
-      
-      userData = newUser;
-    }
-
-    if (userData) {
-      appState.balance = userData.cash || 0;
-      appState.walletAddress = userData.wallet_address || null;
+    if (data) {
+      appState.balance = data.cash || 0;
+      appState.walletAddress = data.wallet_address || null;
       updateUI();
     }
   } catch (error) {
     console.error("Ошибка загрузки данных:", error);
-    throw error;
+    showError("Ошибка загрузки данных");
   }
 }
 
-// Работа с командами
 async function loadTeams() {
   try {
     const { data, error } = await supabase
@@ -136,58 +129,75 @@ async function loadTeams() {
       .order('score', { ascending: false });
 
     if (error) throw error;
-    if (data) appState.teams = data;
+    
+    if (data) {
+      appState.teams = data;
+      renderTeams();
+    }
   } catch (error) {
     console.error("Ошибка загрузки команд:", error);
-    throw error;
+    showError("Ошибка загрузки списка команд");
   }
 }
 
-// Рейтинги
+function renderTeams() {
+  const teamsContainer = document.getElementById('teams-container');
+  if (!teamsContainer) return;
+
+  teamsContainer.innerHTML = '';
+
+  appState.teams.forEach((team, index) => {
+    const teamCard = document.createElement('div');
+    teamCard.className = 'task-card';
+    
+    teamCard.innerHTML = `
+      <div class="inner-2">
+        <div class="coin-balance-2">Команда #${team.team_id}</div>
+        <div class="frame-7">
+          <div class="card-title">Очки: ${team.score}</div>
+        </div>
+      </div>
+    `;
+    
+    teamsContainer.appendChild(teamCard);
+  });
+}
+
 async function loadAllRatings() {
   try {
-    const [
-      { data: cashData, error: cashError },
-      { data: tasksData, error: tasksError },
-      { data: topTeams, error: teamsError }
-    ] = await Promise.all([
-      supabase
-        .from('users')
-        .select('user_id, cash, name')
-        .order('cash', { ascending: false })
-        .limit(10),
-      supabase
-        .from('users')
-        .select('user_id, countoftasks, name')
-        .order('countoftasks', { ascending: false })
-        .limit(10),
-      supabase
-        .from('teams')
-        .select('team_id, members')
-        .order('members', { ascending: false })
-        .limit(10)
-    ]);
-
-    if (cashError) throw cashError;
-    if (tasksError) throw tasksError;
-    if (teamsError) throw teamsError;
-
+    const { data: cashData } = await supabase
+      .from('users')
+      .select('user_id, cash, name')
+      .order('cash', { ascending: false })
+      .limit(10);
+    
+    const { data: tasksData } = await supabase
+      .from('users')
+      .select('user_id, countoftasks, name')
+      .order('countoftasks', { ascending: false })
+      .limit(10);
+    
+    const { data: topTeams } = await supabase
+      .from('teams')
+      .select('team_id, members')
+      .order('members', { ascending: false })
+      .limit(10);
+    
     let invitesData = [];
     if (topTeams && topTeams.length > 0) {
       const captainIds = topTeams.map(team => team.team_id);
-      const { data: captainsData, error: captainsError } = await supabase
+      
+      const { data: captainsData } = await supabase
         .from('users')
         .select('user_id, name')
         .in('user_id', captainIds);
       
-      if (captainsError) throw captainsError;
-
       invitesData = topTeams.map(team => {
         const captain = captainsData?.find(c => c.user_id === team.team_id) || {};
         return {
           user_id: team.team_id,
           name: captain.name || `Капитан ${team.team_id}`,
-          members: team.members
+          members: team.members || team.members 
         };
       });
     }
@@ -196,15 +206,14 @@ async function loadAllRatings() {
     if (tasksData) appState.ratings.tasks = tasksData;
     appState.ratings.invites = invitesData;
     
-    renderRatings();
+    renderAllRatings();
   } catch (error) {
     console.error("Ошибка загрузки рейтингов:", error);
-    throw error;
+    showError("Ошибка загрузки рейтингов");
   }
 }
 
-// Отрисовка рейтингов
-function renderRatings() {
+function renderAllRatings() {
   renderRatingList('cash-rating', appState.ratings.cash, 'cash');
   renderRatingList('tasks-rating', appState.ratings.tasks, 'countoftasks');
   renderRatingList('invites-rating', appState.ratings.invites, 'members');
@@ -216,56 +225,81 @@ function renderRatingList(elementId, data, valueField) {
   
   container.innerHTML = '';
   
-  if (!data || data.length === 0) {
+  if (data.length === 0) {
     container.innerHTML = '<div class="card-title">Нет данных</div>';
     return;
   }
   
   data.forEach((user, index) => {
-    const userElement = document.createElement('div');
-    userElement.className = 'p';
+    const item = document.createElement('div');
+    item.className = 'p';
     
     const userName = user.name || `Игрок ${user.user_id?.slice(0, 4) || '---'}`;
     const valueContent = elementId === 'invites-rating' 
       ? `${user[valueField] || 0} участников`
-      : `${user[valueField] || 0} AVVA`;
+      : `${user[valueField] || 0}`;
     
-    userElement.innerHTML = `
-      <span class="span">${index + 1}. ${userName}</span>
-      <span> - ${valueContent}</span>
-    `;
-    container.appendChild(userElement);
+    item.innerHTML = `<span class="span">${index + 1}. ${userName}</span> - ${valueContent}`;
+    container.appendChild(item);
   });
 }
 
-// Модальные окна
 function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) modal.classList.remove('active');
+  document.getElementById(modalId).classList.remove('active');
   tg.HapticFeedback.impactOccurred('light');
 }
 
 function showSuccess(message) {
   const modal = document.getElementById('successModal');
   const textElement = document.getElementById('successText');
-  if (modal && textElement) {
-    textElement.textContent = message;
-    modal.classList.add('active');
-    tg.HapticFeedback.impactOccurred('light');
-  }
+  textElement.textContent = message;
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
 }
 
 function showError(message) {
   const modal = document.getElementById('errorModal');
   const textElement = document.getElementById('errorText');
-  if (modal && textElement) {
-    textElement.textContent = message;
-    modal.classList.add('active');
-    tg.HapticFeedback.impactOccurred('heavy');
-  }
+  textElement.textContent = message;
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('heavy');
 }
 
-// Реферальная система
+function switchTab(tabName) {
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+  });
+  
+  document.getElementById(`${tabName}-page`).classList.add('active');
+  
+  // Update active tab
+  document.querySelectorAll('.tab-2, .tab-3').forEach(tab => {
+    tab.classList.remove('tab-2');
+    tab.classList.add('tab-3');
+  });
+  
+  const activeTab = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+  if (activeTab) {
+    activeTab.classList.remove('tab-3');
+    activeTab.classList.add('tab-2');
+  }
+  
+  // Update page title
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle) {
+    const titles = {
+      'home': 'Игра',
+      'tasks': 'Задания',
+      'teams': 'Команды',
+      'rating': 'Рейтинг',
+      'market': 'Маркет'
+    };
+    pageTitle.textContent = titles[tabName] || 'Игра';
+  }
+  
+  tg.HapticFeedback.impactOccurred('light');
+}
+
 function showReferralModal() {
   if (!appState.userId) {
     showError("Не удалось получить ID пользователя");
@@ -276,18 +310,19 @@ function showReferralModal() {
   
   const modal = document.getElementById('referralModal');
   const linkInput = document.getElementById('referralLink');
-  if (modal && linkInput) {
-    linkInput.value = appState.referralLink;
-    modal.classList.add('active');
-    tg.HapticFeedback.impactOccurred('light');
-  }
+  linkInput.value = appState.referralLink;
+  
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
 }
 
 function copyReferralLink() {
   if (!appState.referralLink) return;
   
   navigator.clipboard.writeText(appState.referralLink)
-    .then(() => showSuccess("Ссылка скопирована"))
+    .then(() => {
+      showSuccess("Ссылка скопирована в буфер обмена");
+    })
     .catch(err => {
       console.error("Ошибка копирования:", err);
       showError("Не удалось скопировать ссылку");
@@ -297,47 +332,23 @@ function copyReferralLink() {
 function shareToTelegram() {
   if (!appState.referralLink) return;
   
-  const url = `https://t.me/share/url?url=${encodeURIComponent(appState.referralLink)}&text=Присоединяйся к игре AVVA!`;
+  const text = `Присоединяйся к игре AVVA через мою реферальную ссылку: ${appState.referralLink}`;
+  const url = `https://t.me/share/url?url=${encodeURIComponent(appState.referralLink)}&text=${encodeURIComponent(text)}`;
+  
   window.open(url, '_blank');
 }
 
-// Навигация по вкладкам
-function switchTab(tabName) {
-  // Скрываем все страницы
-  document.querySelectorAll('.page').forEach(page => {
-    page.classList.remove('active');
-  });
-
-  // Показываем выбранную страницу
-  const activePage = document.getElementById(`${tabName}-page`);
-  if (activePage) activePage.classList.add('active');
-
-  // Обновляем навигационную панель
-  document.querySelectorAll('.tab-2, .tab-3').forEach(tab => {
-    tab.classList.remove('tab-2');
-    tab.classList.add('tab-3');
-  });
-
-  const activeTab = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
-  if (activeTab) {
-    activeTab.classList.remove('tab-3');
-    activeTab.classList.add('tab-2');
+async function initApp() {
+  try {
+    updateUI();
+    await loadUserData();
+    await loadTeams();
+    await loadAllRatings();
+    switchTab('home');
+  } catch (error) {
+    console.error("Ошибка инициализации:", error);
+    showError("Ошибка загрузки приложения");
   }
-
-  // Обновляем заголовок страницы
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle) {
-    const titles = {
-      'home': 'Игра',
-      'tasks': 'Задания',
-      'teams': 'Команды',
-      'rating': 'Рейтинг'
-    };
-    pageTitle.textContent = titles[tabName] || 'Игра';
-  }
-
-  tg.HapticFeedback.impactOccurred('light');
 }
 
-// Инициализация приложения
 document.addEventListener('DOMContentLoaded', initApp);

@@ -432,6 +432,13 @@ body {
   color: var(--text-primary);
 }
 
+.content-2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Модальные окна */
 .modal {
   position: fixed;
