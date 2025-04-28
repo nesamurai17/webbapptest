@@ -64,48 +64,53 @@ function showLoading(message = 'AVVA GAME LOADING...') {
 
 async function initWallet() {
   try {
-      // Проверяем, доступен ли TonProvider
-      if (window.ton) {
-          const accounts = await window.ton.send("ton_requestAccounts");
+    // Проверяем, доступен ли Telegram Wallet
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openWallet) {
+      // Запрашиваем доступ к кошельку
+      const result = await window.Telegram.WebApp.openWallet({
+        amount: 0, // 0 означает просто открытие кошелька без суммы
+      });
+      
+      // Обработка результата (если нужно)
+      console.log("Wallet result:", result);
+      
+      // Получаем адрес кошелька пользователя
+      const walletAddress = window.Telegram.WebApp.initDataUnsafe?.user?.wallet_address;
+      
+      if (walletAddress) {
+        appState.walletAddress = walletAddress;
+        appState.isWalletConnected = true;
+        
+        // Сохраняем адрес кошелька в Supabase
+        const { error } = await supabase
+          .from('users')
+          .update({ wallet_address: walletAddress })
+          .eq('user_id', appState.userId);
+        
+        if (!error) {
+          showSuccess("TON кошелек успешно подключен!");
           
-          if (accounts && accounts.length > 0) {
-              const walletAddress = accounts[0];
-              appState.walletAddress = walletAddress;
-              appState.isWalletConnected = true;
-              
-              // Сохраняем адрес кошелька в Supabase
-              const { error } = await supabase
-                  .from('users')
-                  .update({ wallet_address: walletAddress })
-                  .eq('user_id', appState.userId);
-              
-              if (!error) {
-                  showSuccess("TON кошелек успешно подключен!");
-                  
-                  // Обновляем UI
-                  document.getElementById("wallet-info").innerHTML = `
-                      <div class="wallet-connected">
-                          <i class="fas fa-check-circle"></i> Подключен: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}
-                      </div>
-                      <button class="btn btn-secondary" onclick="getWalletBalance()">
-                          <i class="fas fa-sync-alt"></i> Проверить баланс
-                      </button>
-                  `;
-                  
-                  // Получаем текущий баланс
-                  await getWalletBalance();
-              } else {
-                  showError("Ошибка сохранения кошелька");
-              }
-          } else {
-              showError("Не удалось получить адрес кошелька");
-          }
+          // Обновляем UI
+          document.getElementById("wallet-info").innerHTML = `
+            <div class="wallet-connected">
+              <i class="fas fa-check-circle"></i> Подключен: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}
+            </div>
+            <button class="btn btn-secondary" onclick="getWalletBalance()">
+              <i class="fas fa-sync-alt"></i> Проверить баланс
+            </button>
+          `;
+        } else {
+          showError("Ошибка сохранения кошелька");
+        }
       } else {
-          showError("TON Provider не обнаружен. Установите TonWallet или другую поддерживаемую программу.");
+        showError("Не удалось получить адрес кошелька");
       }
+    } else {
+      showError("Telegram Wallet не доступен. Обновите приложение Telegram.");
+    }
   } catch (error) {
-      console.error("Ошибка подключения кошелька:", error);
-      showError("Ошибка подключения кошелька");
+    console.error("Ошибка подключения кошелька:", error);
+    showError("Ошибка подключения кошелька");
   }
 }
 
@@ -141,18 +146,43 @@ async function getWalletBalance() {
 }
 
 async function sendTonPayment() {
-  if (!appState.walletAddress) return;
+  if (!appState.walletAddress) {
+    showError("Сначала подключите кошелек");
+    return;
+  }
   
   try {
-      // Здесь можно реализовать логику отправки TON
-      // Например, открыть модальное окно для ввода суммы
-      const modal = document.getElementById('tonPaymentModal');
-      modal.classList.add('active');
-      tg.HapticFeedback.impactOccurred('light');
+    // Открываем кошелек с указанием суммы
+    const amount = parseFloat(document.getElementById('tonAmount').value);
+    if (isNaN(amount) || amount <= 0) {
+      showError("Введите корректную сумму");
+      return;
+    }
+    
+    await window.Telegram.WebApp.openWallet({
+      amount: amount * 1000000000, // Конвертируем в наноТоны
+      currency: 'TON',
+      description: 'Пополнение баланса AVVA'
+    });
+    
+    // Закрываем модальное окно
+    closeModal('tonPaymentModal');
+    showSuccess(`Запрос на отправку ${amount} TON отправлен`);
+    
   } catch (error) {
-      console.error("Ошибка отправки платежа:", error);
-      showError("Ошибка отправки платежа");
+    console.error("Ошибка отправки платежа:", error);
+    showError("Ошибка отправки платежа");
   }
+}
+
+function confirmTonPayment() {
+  const amount = parseFloat(document.getElementById('tonAmount').value);
+  if (isNaN(amount) || amount <= 0) {
+    showError("Введите корректную сумму");
+    return;
+  }
+  
+  sendTonPayment();
 }
 
 function hideLoading() {
