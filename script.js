@@ -622,7 +622,7 @@ async function loadAllRatings() {
     renderAllRatings();
   } catch (error) {
     console.error("Ошибка загрузки рейтингов:", error);
-    showError("Ошибка загрузки рейтингов");
+    showError(error);
   }
 }
 
