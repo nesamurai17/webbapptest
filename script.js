@@ -3,8 +3,43 @@ tg.expand();
 tg.enableClosingConfirmation();
 
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdjhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+
+
+function updateUI() {
+  document.getElementById("balance").textContent = appState.balance.toLocaleString();
+  
+  if (tg.initDataUnsafe?.user) {
+    const user = tg.initDataUnsafe.user;
+    document.getElementById("username").textContent = user.first_name;
+    document.getElementById("user-id").textContent = `ID: ${user.id}`;
+    
+    if (user.photo_url) {
+      document.getElementById("user-avatar").src = user.photo_url;
+    }
+  }
+}
+
+// function showLoading(message = 'AVVA GAME LOADING...') {
+//   const loadingOverlay = document.getElementById('loadingOverlay');
+//   // const loadingText = loadingOverlay.querySelector('.loading-text');
+  
+//   loadingText.textContent = message;
+//   loadingOverlay.style.display = 'flex';
+//   loadingOverlay.classList.remove('hidden');
+//   document.body.style.overflow = 'hidden';
+  
+//   // Добавляем анимацию пульсации для текста
+//   loadingText.style.animation = 'pulse 1.5s infinite';
+  
+//   // Запускаем анимацию прогресса
+//   // const progressBar = loadingOverlay.querySelector('.loading-progress-bar');
+//   if (progressBar) {
+//     progressBar.style.animation = 'progress 2s ease-in-out infinite, gradient 3s ease infinite';
+//   }
+// }
 
 const appState = {
   balance: 0,
@@ -237,18 +272,13 @@ async function loadTasks() {
       }
     });
 
+    // Фильтруем блоки: показываем только те, где не все задания выполнены
     appState.tasks = Object.values(groupedTasks).filter(block => {
-      const hasAccess = block.tasks.some(task => {
-        const userTask = userTaskMap.get(task.task_id);
-        return userTask?.access === 1;
-      });
-
       const allCompleted = block.tasks.every(task => {
         const userTask = userTaskMap.get(task.task_id);
         return userTask?.completed === 1;
       });
-
-      return !allCompleted && (hasAccess || !hasAccess);
+      return !allCompleted;
     });
     
     renderTasks();
@@ -256,8 +286,9 @@ async function loadTasks() {
 
   } catch (error) {
     console.error('[loadTasks] Критическая ошибка:', error);
-    showError("Ошибка загрузки списка заданий");
+    showError( error);
     
+    // Создаем заглушку для отображения
     appState.tasks = [{
       price: 0,
       reward: 0,
@@ -622,11 +653,11 @@ async function startTask(avvaCost, blockId) {
 
 async function loadTeams() {
   try {
-    showLoading('Загрузка списка команд...');
+    // showLoading('Загрузка списка команд...');
     
     const { data, error } = await supabase
       .from('teams')
-      .select('team_id, name, score, members, logo_url')
+      .select('team_id, score, members')
       .order('score', { ascending: false });
 
     if (error) throw error;
@@ -636,29 +667,26 @@ async function loadTeams() {
     } else {
       // Если данных нет, создаем заглушку
       appState.teams = [{
-        team_id: '1',
-        name: 'Пример команды',
-        score: 100,
-        members: 5,
-        logo_url: 'https://via.placeholder.com/60'
+        team_id: 'no-teams',
+        score: 0,
+        members: 0
       }];
+      showError("Нет доступных команд");
     }
     
     renderTeams();
-    hideLoading();
+    // hideLoading();
     
   } catch (error) {
     console.error("Ошибка загрузки команд:", error);
     // Создаем заглушку при ошибке
     appState.teams = [{
-      team_id: '1',
-      name: 'Пример команды',
-      score: 100,
-      members: 5,
-      logo_url: 'https://via.placeholder.com/60'
+      team_id: error,
+      score: 0,
+      members: 0
     }];
     renderTeams();
-    hideLoading();
+    // hideLoading();
     showError("Ошибка загрузки списка команд");
   }
 }
@@ -686,11 +714,10 @@ function renderTeams() {
     
     teamCard.innerHTML = `
       <div class="inner-2">
-        <div class="coin-balance-2">${medalIcon}${team.name || `Команда #${team.team_id}`}</div>
+        <div class="coin-balance-2">${medalIcon}${`Команда #${team.team_id}`}</div>
         <div class="frame-7">
           <div class="card-title">Очки: ${team.score || 0}</div>
           <div class="card-title">Участники: ${team.members || 0}</div>
-          ${team.logo_url ? `<img src="${team.logo_url}" class="team-logo" alt="Логотип команды">` : ''}
         </div>
         <div class="frame-8">
           <button class="div-wrapper" onclick="joinTeam('${team.team_id}')">
@@ -702,40 +729,6 @@ function renderTeams() {
     
     teamsContainer.appendChild(teamCard);
   });
-}
-
-async function joinTeam(teamId) {
-  try {
-    showLoading('Присоединение к команде...');
-    
-    if (!appState.userId) {
-      throw new Error("Не удалось определить пользователя");
-    }
-
-    // Обновляем информацию о команде пользователя
-    const { error } = await supabase
-      .from('users')
-      .update({ team_id: teamId })
-      .eq('user_id', appState.userId);
-
-    if (error) throw error;
-
-    // Увеличиваем счетчик участников в команде
-    const { error: teamError } = await supabase.rpc('increment_team_members', {
-      team_id: teamId
-    });
-
-    if (teamError) throw teamError;
-
-    showSuccess("Вы успешно присоединились к команде!");
-    await loadTeams();
-    
-  } catch (error) {
-    console.error("Ошибка присоединения к команде:", error);
-    showError("Ошибка присоединения к команде");
-  } finally {
-    hideLoading();
-  }
 }
 
 async function loadAllRatings() {
