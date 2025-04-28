@@ -76,18 +76,17 @@ async function connectWallet() {
   try {
     showLoading('Подключение кошелька...');
     
-    if (!window.Telegram.WebApp) {
+    // Проверка поддержки кошелька
+    if (!window.Telegram.WebApp?.sendData) {
       throw new Error("Функция кошелька недоступна в этом клиенте Telegram");
     }
     
+    // Проверка минимальной версии Telegram
     if (!Telegram.WebApp.isVersionAtLeast('6.4')) {
-      throw new Error("Обновите Telegram до последней версии для доступа к кошельку");
-    }
-    
-    if (!Telegram.WebApp.sendData) {
-      throw new Error("Функция отправки данных недоступна");
+      throw new Error("Обновите Telegram до версии 6.4+ для доступа к кошельку");
     }
 
+    // Отправляем запрос
     const requestId = Date.now();
     const result = await Telegram.WebApp.sendData(JSON.stringify({
       type: "connect_wallet",
@@ -95,8 +94,11 @@ async function connectWallet() {
       user_id: appState.userId
     }));
     
-    if (!result) {
-      throw new Error("Кошелек отклонил запрос на подключение");
+    // Если пользователь отменил запрос
+    if (result === false) {
+      // Не показываем ошибку, просто выходим
+      hideLoading();
+      return;
     }
 
     // Ожидаем ответа через webAppDataReceived
@@ -104,16 +106,23 @@ async function connectWallet() {
   } catch (error) {
     console.error("Ошибка подключения кошелька:", error);
     
-    let errorMessage = "Не удалось подключить кошелек";
-    if (error.message.includes("недоступна")) {
-      errorMessage = "Функция кошелька недоступна. Пожалуйста, откройте приложение в официальном клиенте Telegram";
-    } else if (error.message.includes("отклонил")) {
-      errorMessage = "Вы отклонили запрос на подключение кошелька";
-    } else if (error.message.includes("Обновите")) {
-      errorMessage = error.message;
+    // Определяем тип ошибки для пользователя
+    let errorMessage;
+    switch(true) {
+      case error.message.includes("недоступна"):
+        errorMessage = "Функция кошелька недоступна в этом клиенте";
+        break;
+      case error.message.includes("Обновите"):
+        errorMessage = error.message;
+        break;
+      default:
+        errorMessage = "Ошибка при подключении кошелька";
     }
     
-    showError(errorMessage);
+    // Показываем ошибку только если это не отмена
+    if (!error.message.includes("отклонил")) {
+      showError(errorMessage);
+    }
   } finally {
     hideLoading();
   }
