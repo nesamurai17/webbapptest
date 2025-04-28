@@ -658,24 +658,16 @@ async function loadTeams() {
       return;
     }
 
-    // Получаем всех пользователей, у которых team = нашему user_id
+    // Получаем только имена пользователей, у которых team = нашему user_id
     const { data: teamMembers, error } = await supabase
       .from('users')
-      .select('user_id, name, cash')
-      .eq('team', appState.userId);
+      .select('name, cash')
+      .eq('team', appState.userId)
+      .order('cash', { ascending: false }); // Сортируем по балансу
 
     if (error) throw error;
     
-    if (teamMembers && teamMembers.length > 0) {
-      appState.teams = teamMembers.map(member => ({
-        user_id: String(member.user_id), // Гарантируем, что user_id будет строкой
-        name: member.name || `Игрок ${String(member.user_id).slice(-4)}`,
-        cash: member.cash || 0
-      }));
-    } else {
-      appState.teams = [];
-      // Не показываем ошибку, если команда пустая - это нормально
-    }
+    appState.teams = teamMembers || []; // Если null, используем пустой массив
     
     renderTeams();
   } catch (error) {
@@ -690,7 +682,7 @@ function renderTeams() {
   const teamsContainer = document.getElementById('teams-container');
   if (!teamsContainer) return;
 
-  // Очищаем контейнер
+  // Полностью очищаем контейнер
   teamsContainer.innerHTML = '';
 
   // Добавляем заголовок
@@ -698,9 +690,9 @@ function renderTeams() {
   headerCard.className = 'task-card';
   headerCard.innerHTML = `
     <div class="inner-2">
-      <div class="coin-balance-2">Моя команда</div>
+      <div class="coin-balance-2">Мои друзья</div>
       <div class="frame-7">
-        <div class="card-title">Участники: ${appState.teams.length}</div>
+        <div class="card-title">Всего: ${appState.teams.length}</div>
       </div>
       <div class="frame-8">
         <button class="div-wrapper" onclick="showReferralModal()">
@@ -711,13 +703,14 @@ function renderTeams() {
   `;
   teamsContainer.appendChild(headerCard);
 
+  // Если нет друзей
   if (appState.teams.length === 0) {
     const emptyCard = document.createElement('div');
     emptyCard.className = 'task-card';
     emptyCard.innerHTML = `
       <div class="inner-2">
         <div class="frame-7">
-          <div class="card-title">У вас пока нет участников в команде</div>
+          <div class="card-title">Пока никто не присоединился по вашей ссылке</div>
         </div>
       </div>
     `;
@@ -725,45 +718,37 @@ function renderTeams() {
     return;
   }
 
-  // Добавляем карточки участников
-  appState.teams.forEach((member, index) => {
-    const memberCard = document.createElement('div');
-    memberCard.className = 'task-card';
+  // Добавляем список друзей
+  appState.teams.forEach((friend, index) => {
+    const friendCard = document.createElement('div');
+    friendCard.className = 'task-card';
     
-    // Генерируем цвет на основе хеша user_id
-    const userIdStr = String(member.user_id);
-    const colorHash = [...userIdStr].reduce((hash, char) => {
-      return char.charCodeAt(0) + (hash << 6) + (hash << 16) - hash;
-    }, 0);
-    const color = `hsl(${Math.abs(colorHash % 360)}, 70%, 60%)`;
-    
-    memberCard.innerHTML = `
+    friendCard.innerHTML = `
       <div class="inner-2">
         <div class="user-info-container">
           <div class="user-avatar">
-            <div class="image" style="background-color: ${color}; 
-              display: flex; align-items: center; justify-content: center; 
-              color: white; font-weight: bold; border-radius: 50%; 
-              width: 46px; height: 46px; border: 3px solid var(--primary);">
-              ${member.name.charAt(0).toUpperCase()}
+            <div class="image" style="
+              background-color: var(--primary);
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              color: white; 
+              font-weight: bold; 
+              border-radius: 50%; 
+              width: 46px; 
+              height: 46px;">
+              ${index + 1}
             </div>
-            <div class="text-wrapper-2">${member.name}</div>
+            <div class="text-wrapper-2">${friend.name || 'Без имени'}</div>
           </div>
-          <div class="frame-3">
-            <div class="frame-4">
-              <div class="wallet-info">
-                <div class="coin-balance">${member.cash || 0} AVVA</div>
-              </div>
-            </div>
-            <div class="wallet-info">
-              <div class="text-wrapper-2">#${index + 1}</div>
-            </div>
+          <div class="wallet-info">
+            <div class="coin-balance">${friend.cash || 0} AVVA</div>
           </div>
         </div>
       </div>
     `;
     
-    teamsContainer.appendChild(memberCard);
+    teamsContainer.appendChild(friendCard);
   });
 }
 
