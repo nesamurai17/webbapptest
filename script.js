@@ -701,6 +701,11 @@ function renderTeams() {
           <div class="coin-balance-2">Моя команда</div>
           <div class="frame-7">
             <div class="card-title">У вас пока нет участников в команде</div>
+            <div class="frame-8">
+              <button class="div-wrapper" onclick="showReferralModal()">
+                <div class="text-wrapper-5">Пригласить друзей</div>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -716,6 +721,11 @@ function renderTeams() {
         <div class="frame-7">
           <div class="card-title">Участники: ${appState.teams.length}</div>
         </div>
+        <div class="frame-8">
+          <button class="div-wrapper" onclick="showReferralModal()">
+            <div class="text-wrapper-5">Пригласить ещё</div>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -729,7 +739,10 @@ function renderTeams() {
       <div class="inner-2">
         <div class="user-info-container">
           <div class="user-avatar">
-            <img class="image" src="${member.photo_url || 'https://via.placeholder.com/60'}" alt="User Avatar">
+            <div class="image" style="background-color: #${member.user_id.slice(0, 6).padEnd(6, '0')}; 
+              display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+              ${member.name.charAt(0).toUpperCase()}
+            </div>
             <div class="text-wrapper-2">${member.name}</div>
           </div>
           <div class="frame-3">
