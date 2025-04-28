@@ -20,7 +20,10 @@ const appState = {
     tasks: [],
     invites: []
   },
-  referralLink: ''
+  referralLink: '',
+  walletAddress: null,
+  walletBalance: 0,
+  isWalletConnected: false
 };
 
 // Показываем загрузку при запуске
@@ -822,6 +825,60 @@ function shareToOther() {
   }
 }
 
+
+async function initWallet() {
+  if (!window.Telegram.WebApp.initDataUnsafe) {
+    console.log("Not in Telegram WebApp");
+    return;
+  }
+
+  try {
+    // Проверяем доступность кошелька
+    if (window.Telegram.WebApp.isVersionAtLeast('6.4')) {
+      // Запрашиваем доступ к кошельку
+      const result = await window.Telegram.WebApp.openInvoice({
+        currency: 'TON',
+        amount: '0', // Нулевая сумма для проверки доступа
+        description: 'Подключение кошелька'
+      });
+
+      if (result.status === 'paid') {
+        // Получаем данные кошелька
+        const walletData = await window.Telegram.WebApp.sendData({
+          data: JSON.stringify({ type: 'get_wallet_info' })
+        });
+
+        if (walletData) {
+          const walletInfo = JSON.parse(walletData);
+          appState.walletAddress = walletInfo.address;
+          appState.walletBalance = walletInfo.balance;
+          appState.isWalletConnected = true;
+          updateWalletUI();
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Wallet error:", error);
+  }
+}
+
+function updateWalletUI() {
+  if (appState.isWalletConnected) {
+    const walletElement = document.getElementById('wallet-info');
+    if (walletElement) {
+      walletElement.innerHTML = `
+        <div class="wallet-card">
+          <i class="fas fa-wallet"></i>
+          <span>TON Кошелек: ${appState.walletAddress?.slice(0, 6)}...${appState.walletAddress?.slice(-4)}</span>
+          <span>Баланс: ${appState.walletBalance} TON</span>
+        </div>
+      `;
+    }
+  }
+}
+
+
+
 async function initApp() {
   try {
     console.log("Инициализация приложения...");
@@ -832,6 +889,7 @@ async function initApp() {
     await loadTeams();
     await loadTasks();
     await loadAllRatings();
+    await initWallet();
     switchTab('home');
 
     // Восстанавливаем таймеры

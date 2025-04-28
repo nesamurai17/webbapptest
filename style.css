@@ -668,3 +668,18 @@ body {
   flex-direction: column;
   gap: 0.5rem;
 }
+/* Wallet styles */
+.wallet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(46, 125, 50, 0.1);
+  border-radius: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.wallet-card i {
+  color: #2e7d32;
+  margin-right: 0.5rem;
+}
