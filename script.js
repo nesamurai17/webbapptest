@@ -2,13 +2,15 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
 
+// Конфигурация Supabase
 const supabaseUrl = 'https://koqnqotxchpimovxcnva.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdnhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvcW5xb3R4Y2hwaW1vdjhjbnZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTE3Mzk4MCwiZXhwIjoyMDYwNzQ5OTgwfQ.bFAEslvrVDE2i7En3Ln8_AbQPtgvH_gElnrBcPBcSMc';
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+// Состояние приложения
 const appState = {
   balance: 0,
-  userId: tg.initDataUnsafe?.user?.id || null,
+  userId: tg.initDataUnsafe?.user?.id || Math.random().toString(36).substring(2, 9), // Добавлен fallback ID
   currentTask: null,
   teams: [],
   tasks: [],
@@ -26,206 +28,275 @@ const appState = {
   isWalletConnected: false
 };
 
-// Показываем загрузку при запуске
-showLoading('Загрузка приложения...');
+// Основная функция инициализации
+async function initApp() {
+  try {
+    updateUI();
+    await Promise.all([
+      loadUserData(),
+      initUserTasks(),
+      loadTeams(),
+      loadTasks(),
+      loadAllRatings()
+    ]);
+    
+    switchTab('home');
+    restoreTimers();
+    setupEventListeners();
+    
+  } catch (error) {
+    console.error("Ошибка инициализации:", error);
+    showError("Ошибка загрузки приложения");
+  }
+}
 
+// Настройка обработчиков событий
+function setupEventListeners() {
+  window.addEventListener('beforeunload', saveTimersToStorage);
+  
+  // Глобальные функции
+  window.closeModal = closeModal;
+  window.switchTab = switchTab;
+  window.showConfirmAvvaModal = showConfirmAvvaModal;
+  window.showReferralModal = showReferralModal;
+  window.copyReferralLink = copyReferralLink;
+  window.shareToTelegram = shareToTelegram;
+  
+  // Обработчики для кнопок в DOM
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  });
+}
+
+// Обновление интерфейса
 function updateUI() {
-  document.getElementById("balance").textContent = appState.balance.toLocaleString();
+  const balanceElement = document.getElementById("balance");
+  if (balanceElement) balanceElement.textContent = appState.balance.toFixed(2);
+  
+  const tonBalanceElement = document.getElementById("ton-balance");
+  if (tonBalanceElement) tonBalanceElement.textContent = appState.walletBalance.toFixed(3);
   
   if (tg.initDataUnsafe?.user) {
     const user = tg.initDataUnsafe.user;
-    document.getElementById("username").textContent = user.first_name;
-    document.getElementById("user-id").textContent = `ID: ${user.id}`;
+    const usernameElement = document.getElementById("username");
+    if (usernameElement) {
+      usernameElement.textContent = user.first_name || "Пользователь";
+    }
     
     if (user.photo_url) {
-      document.getElementById("user-avatar").src = user.photo_url;
+      const avatarElement = document.getElementById("user-avatar");
+      if (avatarElement) avatarElement.src = user.photo_url;
     }
   }
-}
-
-function showLoading(message = 'AVVA GAME LOADING...') {
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  const loadingText = loadingOverlay.querySelector('.loading-text');
   
-  loadingText.textContent = message;
-  loadingOverlay.style.display = 'flex';
-  loadingOverlay.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
-  
-  // Добавляем анимацию пульсации для текста
-  loadingText.style.animation = 'pulse 1.5s infinite';
-  
-  // Запускаем анимацию прогресса
-  const progressBar = loadingOverlay.querySelector('.loading-progress-bar');
-  if (progressBar) {
-    progressBar.style.animation = 'progress 2s ease-in-out infinite, gradient 3s ease infinite';
+  // Обновление адреса кошелька
+  const walletAddressElement = document.getElementById("wallet-address");
+  if (walletAddressElement && appState.walletAddress) {
+    walletAddressElement.textContent = `${appState.walletAddress.substring(0, 4)}...${appState.walletAddress.substring(appState.walletAddress.length - 4)}`;
   }
 }
 
-async function initWallet() {
+// Загрузка данных пользователя
+async function loadUserData() {
+  if (!appState.userId) return;
+  
   try {
-    // Проверяем, доступен ли Telegram Wallet
-    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openWallet) {
-      // Запрашиваем доступ к кошельку
-      const result = await window.Telegram.WebApp.openWallet({
-        amount: 0, // 0 означает просто открытие кошелька без суммы
-      });
+    // Проверяем существование пользователя
+    let { data: userData } = await supabase
+      .from('users')
+      .select('cash, wallet_address')
+      .eq('user_id', appState.userId)
+      .single();
+
+    // Если пользователя нет - создаем
+    if (!userData) {
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert([{
+          user_id: appState.userId,
+          cash: 0,
+          name: tg.initDataUnsafe?.user?.first_name || 'Новый пользователь'
+        }])
+        .select()
+        .single();
       
-      // Обработка результата (если нужно)
-      console.log("Wallet result:", result);
+      userData = newUser;
+    }
+
+    if (userData) {
+      appState.balance = userData.cash || 0;
+      appState.walletAddress = userData.wallet_address || null;
+      updateUI();
+    }
+  } catch (error) {
+    console.error("Ошибка загрузки данных:", error);
+    throw error;
+  }
+}
+
+// Инициализация заданий пользователя
+async function initUserTasks() {
+  if (!appState.userId) return false;
+
+  try {
+    await syncUserTasks();
+    return true;
+  } catch (error) {
+    console.error("Ошибка инициализации заданий:", error);
+    throw error;
+  }
+}
+
+// Синхронизация заданий пользователя
+async function syncUserTasks() {
+  try {
+    const { data: allTasks } = await supabase.from('tasks').select('*');
+    const { data: userTasks } = await supabase
+      .from('user_tasks')
+      .select('*')
+      .eq('user_id', appState.userId);
+
+    const existingTaskIds = userTasks?.map(t => t.task_id) || [];
+    const tasksToAdd = allTasks
+      ?.filter(task => !existingTaskIds.includes(task.task_id))
+      .map(task => ({
+        user_id: appState.userId,
+        task_id: task.task_id,
+        access: 0,
+        completed: 0
+      })) || [];
+
+    if (tasksToAdd.length > 0) {
+      await supabase.from('user_tasks').insert(tasksToAdd);
+    }
+
+    appState.userTasks = [...(userTasks || []), ...tasksToAdd];
+    return true;
+  } catch (error) {
+    console.error("Ошибка синхронизации:", error);
+    throw error;
+  }
+}
+
+// Загрузка заданий
+async function loadTasks() {
+  try {
+    const { data: allTasks, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('task_id', { ascending: true });
+
+    if (error) throw error;
+
+    const groupedTasks = {};
+    const userTaskMap = new Map(
+      appState.userTasks.map(task => [task.task_id, task])
+    );
+
+    allTasks?.forEach(task => {
+      if (!task?.task_id) return;
       
-      // Получаем адрес кошелька пользователя
-      const walletAddress = window.Telegram.WebApp.initDataUnsafe?.user?.wallet_address;
-      
-      if (walletAddress) {
-        appState.walletAddress = walletAddress;
-        appState.isWalletConnected = true;
-        
-        // Сохраняем адрес кошелька в Supabase
-        const { error } = await supabase
-          .from('users')
-          .update({ wallet_address: walletAddress })
-          .eq('user_id', appState.userId);
-        
-        if (!error) {
-          showSuccess("TON кошелек успешно подключен!");
-          
-          // Обновляем UI
-          document.getElementById("wallet-info").innerHTML = `
-            <div class="wallet-connected">
-              <i class="fas fa-check-circle"></i> Подключен: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}
-            </div>
-            <button class="btn btn-secondary" onclick="getWalletBalance()">
-              <i class="fas fa-sync-alt"></i> Проверить баланс
-            </button>
-          `;
-        } else {
-          showError("Ошибка сохранения кошелька");
-        }
-      } else {
-        showError("Не удалось получить адрес кошелька");
+      const [blockId] = task.task_id.split('-');
+      if (!blockId) return;
+
+      if (!groupedTasks[blockId]) {
+        groupedTasks[blockId] = {
+          price: task.price || 0,
+          reward: task.reward || 0,
+          tasks: [],
+          blockId: blockId
+        };
       }
-    } else {
-      showError("Telegram Wallet не доступен. Обновите приложение Telegram.");
-    }
-  } catch (error) {
-    console.error("Ошибка подключения кошелька:", error);
-    showError("Ошибка подключения кошелька");
-  }
-}
 
-async function getWalletBalance() {
-  if (!appState.walletAddress) return;
-  
-  try {
-      showLoading("Проверка баланса...");
-      
-      // Получаем баланс через TonProvider
-      const balance = await window.ton.send("ton_getBalance", { address: appState.walletAddress });
-      appState.walletBalance = balance;
-      
-      // Обновляем UI
-      document.getElementById("wallet-info").innerHTML = `
-          <div class="wallet-connected">
-              <i class="fas fa-check-circle"></i> Подключен: ${appState.walletAddress.slice(0, 6)}...${appState.walletAddress.slice(-4)}
-          </div>
-          <div class="wallet-balance">
-              <i class="fas fa-coins"></i> Баланс: ${balance / 10**9} TON
-          </div>
-          <button class="btn btn-primary" onclick="sendTonPayment()">
-              <i class="fas fa-paper-plane"></i> Пополнить AVVA
-          </button>
-      `;
-      
-      hideLoading();
-  } catch (error) {
-      console.error("Ошибка получения баланса:", error);
-      showError("Ошибка получения баланса");
-      hideLoading();
-  }
-}
+      const userTask = userTaskMap.get(task.task_id) || {
+        access: 0,
+        completed: 0
+      };
 
-async function sendTonPayment() {
-  if (!appState.walletAddress) {
-    showError("Сначала подключите кошелек");
-    return;
-  }
-  
-  try {
-    // Открываем кошелек с указанием суммы
-    const amount = parseFloat(document.getElementById('tonAmount').value);
-    if (isNaN(amount) || amount <= 0) {
-      showError("Введите корректную сумму");
-      return;
-    }
-    
-    await window.Telegram.WebApp.openWallet({
-      amount: amount * 1000000000, // Конвертируем в наноТоны
-      currency: 'TON',
-      description: 'Пополнение баланса AVVA'
+      groupedTasks[blockId].tasks.push({
+        ...task,
+        access: userTask.access,
+        completed: userTask.completed
+      });
+    });
+
+    appState.tasks = Object.values(groupedTasks).filter(block => {
+      const hasAccess = block.tasks.some(task => {
+        const userTask = userTaskMap.get(task.task_id);
+        return userTask?.access === 1;
+      });
+
+      const allCompleted = block.tasks.every(task => {
+        const userTask = userTaskMap.get(task.task_id);
+        return userTask?.completed === 1;
+      });
+
+      return !allCompleted;
     });
     
-    // Закрываем модальное окно
-    closeModal('tonPaymentModal');
-    showSuccess(`Запрос на отправку ${amount} TON отправлен`);
-    
+    renderTasks();
+    return true;
   } catch (error) {
-    console.error("Ошибка отправки платежа:", error);
-    showError("Ошибка отправки платежа");
+    console.error("Ошибка загрузки заданий:", error);
+    throw error;
   }
 }
 
-function confirmTonPayment() {
-  const amount = parseFloat(document.getElementById('tonAmount').value);
-  if (isNaN(amount) || amount <= 0) {
-    showError("Введите корректную сумму");
-    return;
-  }
-  
-  sendTonPayment();
+// Отрисовка заданий
+function renderTasks() {
+  const tasksContainer = document.querySelector('#home-page .cover-2');
+  if (!tasksContainer) return;
+
+  tasksContainer.innerHTML = '';
+
+  appState.tasks.forEach((taskBlock, blockIndex) => {
+    if (!taskBlock || !taskBlock.tasks) return;
+
+    const taskCard = document.createElement('div');
+    taskCard.className = 'task-card';
+    
+    taskCard.innerHTML = `
+      <div class="inner-2">
+        <div class="frame-6">
+          <button class="btn"><div class="text-wrapper-3">X2 доход</div></button>
+          <button class="btn"><div class="text-wrapper-3">Комьюнити</div></button>
+          <button class="btn"><div class="text-wrapper-3">Доп задание</div></button>
+          <button class="btn"><div class="text-wrapper-3">5 заданий</div></button>
+        </div>
+        <div class="coin-balance-2">БЛОК ${blockIndex + 1}</div>
+        <div class="frame-7">
+          <div class="card-title">Стоимость</div>
+          <p class="p"><span class="span">${taskBlock.price} </span> <span class="text-wrapper-4">AVVA</span></p>
+        </div>
+        <div class="frame-7">
+          <div class="card-title">Награда</div>
+          <p class="coin-balance">${taskBlock.reward} AVVA</p>
+        </div>
+        <div class="frame-8">
+          <button class="div-wrapper" onclick="showConfirmAvvaModal(${taskBlock.price}, ${taskBlock.reward}, '${taskBlock.blockId}')">
+            <div class="text-wrapper-5">Начать</div>
+          </button>
+        </div>
+      </div>
+    `;
+
+    tasksContainer.appendChild(taskCard);
+  });
 }
 
-function hideLoading() {
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  if (loadingOverlay) {
-    loadingOverlay.classList.add('hidden');
-    setTimeout(() => {
-      loadingOverlay.style.display = 'none';
-      document.body.style.overflow = '';
-    }, 500); // Соответствует длительности анимации исчезновения
-  }
-}
-
-function startTaskTimer(taskId, callback) {
+// Таймеры заданий
+function startTaskTimer(taskId, duration = 60000, callback) {
   if (appState.activeTimers[taskId]) {
     clearTimeout(appState.activeTimers[taskId]);
   }
 
-  const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
-  if (!button) return;
-
-  const originalContent = button.innerHTML;
-  button.innerHTML = '<i class="fas fa-clock"></i>';
-  button.classList.add('timer-active');
-  button.onclick = null;
-
-  // Сохраняем время старта таймера
   appState.timerStartTimes[taskId] = Date.now();
   saveTimersToStorage();
 
-  const timer = setTimeout(() => {
-    completeTimer(taskId, button, originalContent, callback);
-  }, 60000); // 60 секунд
-
-  appState.activeTimers[taskId] = timer;
-}
-
-function completeTimer(taskId, button, originalContent, callback) {
-  clearTimer(taskId);
-  button.innerHTML = originalContent;
-  button.classList.remove('timer-active');
-  button.onclick = (e) => completeTaskFromLink(e, taskId);
-  if (callback) callback();
+  appState.activeTimers[taskId] = setTimeout(() => {
+    clearTimer(taskId);
+    if (callback) callback();
+  }, duration);
 }
 
 function clearTimer(taskId) {
@@ -254,331 +325,187 @@ function restoreTimers() {
     const remaining = 60000 - elapsed;
 
     if (remaining > 0) {
-      const button = document.querySelector(`.step-action[data-task-id="${taskId}"]`);
-      if (button) {
-        button.innerHTML = '<i class="fas fa-clock"></i>';
-        button.classList.add('timer-active');
-        button.onclick = null;
-
-        appState.activeTimers[taskId] = setTimeout(() => {
-          completeTimer(taskId, button, '<i class="fas fa-check"></i> GO', () => {
-            const [blockId] = taskId.split('-');
-            completeTask(taskId, blockId);
-          });
-        }, remaining);
-      }
+      const [blockId] = taskId.split('-');
+      appState.activeTimers[taskId] = setTimeout(() => {
+        completeTask(taskId, blockId);
+      }, remaining);
     } else {
-      // Таймер уже истек, отмечаем задание выполненным
       const [blockId] = taskId.split('-');
       completeTask(taskId, blockId);
-      delete appState.timerStartTimes[taskId];
     }
-  }
-  saveTimersToStorage();
-}
-
-async function completeTaskFromLink(event, taskId) {
-  event.preventDefault();
-  const url = event.target.getAttribute('href');
-  
-  try {
-    const task = appState.tasks.flatMap(b => b.tasks).find(t => t.task_id === taskId);
-    if (!task) throw new Error('Task not found');
-    
-    const [blockId] = taskId.split('-');
-    
-    if (url && url !== '#') {
-      window.open(url, '_blank');
-    }
-    
-    startTaskTimer(taskId, async () => {
-      showLoading('Проверяем выполнение задания...');
-      try {
-        await completeTask(taskId, blockId);
-      } catch (error) {
-        console.error("Ошибка выполнения задания:", error);
-        showError("Ошибка выполнения задания");
-      } finally {
-        hideLoading();
-      }
-    });
-  } catch (error) {
-    console.error("Ошибка выполнения задания:", error);
-    showError("Ошибка выполнения задания");
-    hideLoading();
   }
 }
 
-async function initUserTasks() {
-  if (!appState.userId) {
-    console.error("User ID not available");
-    return false;
-  }
-
+// Работа с командами
+async function loadTeams() {
   try {
-    const { error: tasksError } = await supabase
-      .from('tasks')
-      .select('*')
-      .limit(1);
-    
-    if (tasksError) throw new Error("Таблица tasks не найдена");
+    const { data, error } = await supabase
+      .from('teams')
+      .select('team_id, score')
+      .order('score', { ascending: false });
 
-    await syncUserTasks();
-    return true;
-    
+    if (error) throw error;
+    if (data) appState.teams = data;
   } catch (error) {
-    console.error("Ошибка инициализации заданий:", error);
-    showError("Ошибка загрузки заданий");
-    return false;
-  }
-}
-
-async function syncUserTasks() {
-  try {
-    const { data: allTasks, error: tasksError } = await supabase
-      .from('tasks')
-      .select('*');
-    
-    if (tasksError) throw tasksError;
-
-    const { data: userTasks, error: userTasksError } = await supabase
-      .from('user_tasks')
-      .select('*')
-      .eq('user_id', appState.userId);
-    
-    if (userTasksError) throw userTasksError;
-
-    const existingTaskIds = userTasks.map(t => t.task_id);
-    const tasksToAdd = allTasks
-      .filter(task => !existingTaskIds.includes(task.task_id))
-      .map(task => ({
-        user_id: appState.userId,
-        task_id: task.task_id,
-        access: 0,
-        completed: 0
-      }));
-
-    if (tasksToAdd.length > 0) {
-      const { error: insertError } = await supabase
-        .from('user_tasks')
-        .insert(tasksToAdd);
-      
-      if (insertError) throw insertError;
-    }
-
-    appState.userTasks = userTasks.concat(tasksToAdd);
-    return true;
-    
-  } catch (error) {
-    console.error("Ошибка синхронизации:", error);
+    console.error("Ошибка загрузки команд:", error);
     throw error;
   }
 }
 
-async function loadTasks() {
+// Рейтинги
+async function loadAllRatings() {
   try {
-    console.log('[loadTasks] Начало загрузки заданий');
-    
-    const { data: allTasks, error, status } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('task_id', { ascending: true });
+    const [
+      { data: cashData, error: cashError },
+      { data: tasksData, error: tasksError },
+      { data: topTeams, error: teamsError }
+    ] = await Promise.all([
+      supabase
+        .from('users')
+        .select('user_id, cash, name')
+        .order('cash', { ascending: false })
+        .limit(10),
+      supabase
+        .from('users')
+        .select('user_id, countoftasks, name')
+        .order('countoftasks', { ascending: false })
+        .limit(10),
+      supabase
+        .from('teams')
+        .select('team_id, members')
+        .order('members', { ascending: false })
+        .limit(10)
+    ]);
 
-    console.log(`[loadTasks] Статус запроса: ${status}`);
+    if (cashError) throw cashError;
+    if (tasksError) throw tasksError;
+    if (teamsError) throw teamsError;
 
-    if (error) {
-      console.error('[loadTasks] Ошибка Supabase:', error);
-      throw new Error(`Database error: ${error.message}`);
-    }
+    let invitesData = [];
+    if (topTeams && topTeams.length > 0) {
+      const captainIds = topTeams.map(team => team.team_id);
+      const { data: captainsData, error: captainsError } = await supabase
+        .from('users')
+        .select('user_id, name')
+        .in('user_id', captainIds);
+      
+      if (captainsError) throw captainsError;
 
-    if (!Array.isArray(allTasks)) {
-      console.error('[loadTasks] Данные не являются массивом:', allTasks);
-      throw new Error('Invalid data format from database');
-    }
-
-    console.log(`[loadTasks] Получено ${allTasks.length} заданий`);
-
-    const groupedTasks = {};
-    const userTaskMap = new Map(
-      appState.userTasks.map(task => [task.task_id, task])
-    );
-
-    allTasks.forEach(task => {
-      try {
-        if (!task.task_id) {
-          console.warn('[loadTasks] Задание без task_id пропущено');
-          return;
-        }
-
-        const [blockId] = task.task_id.split('-');
-        if (!blockId) {
-          console.warn('[loadTasks] Не удалось определить blockId для:', task.task_id);
-          return;
-        }
-
-        if (!groupedTasks[blockId]) {
-          groupedTasks[blockId] = {
-            price: task.price || 0,
-            reward: task.reward || 0,
-            tasks: [],
-            blockId: blockId
-          };
-        }
-
-        const userTask = userTaskMap.get(task.task_id) || {
-          access: 0,
-          completed: 0
+      invitesData = topTeams.map(team => {
+        const captain = captainsData?.find(c => c.user_id === team.team_id) || {};
+        return {
+          user_id: team.team_id,
+          name: captain.name || `Капитан ${team.team_id}`,
+          members: team.members
         };
-
-        groupedTasks[blockId].tasks.push({
-          ...task,
-          access: userTask.access,
-          completed: userTask.completed
-        });
-      } catch (e) {
-        console.error('[loadTasks] Ошибка обработки задания:', task, e);
-      }
-    });
-
-    appState.tasks = Object.values(groupedTasks).filter(block => {
-      const hasAccess = block.tasks.some(task => {
-        const userTask = userTaskMap.get(task.task_id);
-        return userTask?.access === 1;
       });
-
-      const allCompleted = block.tasks.every(task => {
-        const userTask = userTaskMap.get(task.task_id);
-        return userTask?.completed === 1;
-      });
-
-      return !allCompleted && (hasAccess || !hasAccess);
-    });
+    }
     
-    console.log('[loadTasks] Сформировано блоков заданий:', appState.tasks.length);
+    if (cashData) appState.ratings.cash = cashData;
+    if (tasksData) appState.ratings.tasks = tasksData;
+    appState.ratings.invites = invitesData;
     
-    renderTasks();
-    return true;
-
+    renderRatings();
   } catch (error) {
-    console.error('[loadTasks] Критическая ошибка:', error);
-    showError("Ошибка загрузки списка заданий");
-    
-    appState.tasks = [{
-      price: 0,
-      reward: 0,
-      tasks: [{
-        task_id: 'fallback-1',
-        name: 'Пример задания',
-        text: 'Описание примера задания',
-        access: 0,
-        completed: 0
-      }],
-      blockId: 'fallback'
-    }];
-    
-    renderTasks();
-    return false;
+    console.error("Ошибка загрузки рейтингов:", error);
+    throw error;
   }
 }
 
-function renderTasks() {
-  const tasksContainer = document.getElementById('tasks-page');
-  if (!tasksContainer) return;
+// Отрисовка рейтингов
+function renderRatings() {
+  const cashRatingElement = document.getElementById('cash-rating');
+  if (!cashRatingElement) return;
 
-  tasksContainer.innerHTML = '<div class="header"><div class="user-info"><div class="user-name">Задания</div></div></div>';
-
-  if (!appState.tasks || appState.tasks.length === 0) {
-    tasksContainer.innerHTML += '<div class="card"><p>Нет доступных заданий</p></div>';
-    return;
-  }
-
-  appState.tasks.forEach((taskBlock, blockIndex) => {
-    if (!taskBlock || !taskBlock.tasks) return;
-
-    const price = taskBlock.price || 0;
-    const reward = taskBlock.reward || 0;
-    const blockName = `Блок заданий #${blockIndex + 1}`;
-
-    const blockCard = document.createElement('div');
-    blockCard.className = 'card task-card';
-    
-    blockCard.innerHTML = `
-      <div class="card-title">
-        <i class="fas fa-star"></i>
-        ${blockName}
-      </div>
-      <div class="badge badge-primary">
-        <i class="fas fa-coins"></i> Стоимость: ${price} AVVA
-      </div>
-      <div class="badge badge-premium" style="margin-top: 0.5rem;">
-        <i class="fas fa-gem"></i> Награда: ${reward} AVVA
-      </div>
-      <div class="task-steps">
+  cashRatingElement.innerHTML = '';
+  
+  appState.ratings.cash.slice(0, 5).forEach((user, index) => {
+    const userElement = document.createElement('div');
+    userElement.className = 'p';
+    userElement.innerHTML = `
+      <span class="span">${index + 1}. ${user.name}</span>
+      <span> - ${user.cash} AVVA</span>
     `;
-
-    const hasAccess = taskBlock.tasks.some(task => {
-      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id);
-      return userTask?.access === 1;
-    });
-
-    taskBlock.tasks.forEach((task, taskIndex) => {
-      const taskName = task.name || `Задание ${taskIndex + 1}`;
-      const taskText = task.text || 'Описание отсутствует';
-      const userTask = appState.userTasks.find(ut => ut.task_id === task.task_id) || {};
-      const isCompleted = userTask.completed === 1;
-      
-      const stepDiv = document.createElement('div');
-      stepDiv.className = `task-step ${isCompleted ? 'completed-step' : ''}`;
-      stepDiv.innerHTML = `
-        <div class="step-number">${taskIndex + 1}</div>
-        <div class="step-content">
-          <div class="step-title">${taskName}</div>
-          <div class="step-description">${taskText}</div>
-        </div>
-      `;
-      
-      if (hasAccess && !isCompleted) {
-        const goButton = document.createElement('a');
-        goButton.className = 'btn btn-success btn-small step-action';
-        goButton.innerHTML = '<i class="fas fa-check"></i> GO';
-        goButton.href = task.url || '#';
-        goButton.target = '_blank';
-        goButton.setAttribute('data-task-id', task.task_id);
-        
-        if (appState.activeTimers[task.task_id]) {
-          goButton.innerHTML = '<i class="fas fa-clock"></i>';
-          goButton.classList.add('timer-active');
-        } else {
-          goButton.onclick = (e) => completeTaskFromLink(e, task.task_id);
-        }
-        
-        stepDiv.appendChild(goButton);
-      }
-      
-      blockCard.querySelector('.task-steps').appendChild(stepDiv);
-    });
-
-    if (!hasAccess) {
-      const startButton = document.createElement('button');
-      startButton.className = 'btn btn-primary';
-      startButton.textContent = 'Начать';
-      startButton.onclick = function() {
-        if (appState.balance < price) {
-          showError(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
-          return;
-        }
-        showConfirmAvvaModal(price, reward, taskBlock.blockId, startButton, blockCard);
-      };
-      blockCard.appendChild(startButton);
-    } else {
-      const accessBadge = document.createElement('div');
-      accessBadge.className = 'badge badge-success';
-      accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
-      blockCard.appendChild(accessBadge);
-    }
-
-    tasksContainer.appendChild(blockCard);
+    cashRatingElement.appendChild(userElement);
   });
+}
+
+// Модальные окна
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) modal.classList.remove('active');
+  tg.HapticFeedback.impactOccurred('light');
+}
+
+function showSuccess(message) {
+  const modal = document.getElementById('successModal');
+  const textElement = document.getElementById('successText');
+  if (modal && textElement) {
+    textElement.textContent = message;
+    modal.classList.add('active');
+    tg.HapticFeedback.impactOccurred('light');
+  }
+}
+
+function showError(message) {
+  const modal = document.getElementById('errorModal');
+  const textElement = document.getElementById('errorText');
+  if (modal && textElement) {
+    textElement.textContent = message;
+    modal.classList.add('active');
+    tg.HapticFeedback.impactOccurred('heavy');
+  }
+}
+
+function showConfirmAvvaModal(price, reward, blockId) {
+  const modal = document.getElementById('confirmAvvaModal');
+  const textElement = document.getElementById('confirmAvvaText');
+  const button = document.getElementById('confirmAvvaBtn');
+  
+  if (!modal || !textElement || !button) return;
+
+  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} AVVA</strong>`;
+  
+  button.onclick = async function() {
+    if (appState.balance < price) {
+      showError(`Недостаточно AVVA. Нужно: ${price}`);
+      closeModal('confirmAvvaModal');
+      return;
+    }
+    
+    try {
+      // Обновляем баланс локально
+      appState.balance -= price;
+      updateUI();
+      
+      // Обновляем баланс в базе данных
+      const { error } = await supabase
+        .from('users')
+        .update({ cash: appState.balance })
+        .eq('user_id', appState.userId);
+      
+      if (error) throw error;
+      
+      // Открываем доступ к заданиям
+      await updateTaskAccess(blockId);
+      
+      // Перезагружаем задания
+      await loadTasks();
+      
+      showSuccess(`Списано ${price} AVVA. Доступ к заданиям открыт.`);
+      closeModal('confirmAvvaModal');
+    } catch (error) {
+      console.error("Ошибка:", error);
+      // Откатываем изменения баланса при ошибке
+      appState.balance += price;
+      updateUI();
+      showError("Ошибка при начале задания");
+      closeModal('confirmAvvaModal');
+    }
+  };
+  
+  modal.classList.add('active');
+  tg.HapticFeedback.impactOccurred('light');
 }
 
 async function updateTaskAccess(blockId) {
@@ -601,18 +528,16 @@ async function updateTaskAccess(blockId) {
       
       if (updateError) throw updateError;
       
+      // Обновляем локальное состояние
       appState.userTasks = appState.userTasks.map(task => {
         if (taskIds.includes(task.task_id)) {
           return { ...task, access: 1 };
         }
         return task;
       });
-      
-      return true;
     }
-    return false;
   } catch (error) {
-    console.error("Ошибка обновления доступа к заданиям:", error);
+    console.error("Ошибка обновления доступа:", error);
     throw error;
   }
 }
@@ -626,7 +551,8 @@ async function completeTask(taskId, blockId) {
       .eq('task_id', taskId);
     
     if (updateError) throw updateError;
-
+    
+    // Обновляем локальное состояние
     appState.userTasks = appState.userTasks.map(task => {
       if (task.task_id === taskId) {
         return { ...task, completed: 1 };
@@ -635,316 +561,36 @@ async function completeTask(taskId, blockId) {
     });
 
     const block = appState.tasks.find(b => b.blockId === blockId);
-    if (!block) return true;
+    if (!block) return;
 
-    const allTasksInBlock = block.tasks || [];
-    const allCompleted = allTasksInBlock.every(t => {
+    // Проверяем, все ли задания в блоке выполнены
+    const allCompleted = block.tasks.every(t => {
       const userTask = appState.userTasks.find(ut => ut.task_id === t.task_id);
       return userTask?.completed === 1;
     });
 
-    if (allCompleted) {
-      if (block.reward > 0) {
-        appState.balance += block.reward;
-        updateUI();
+    if (allCompleted && block.reward > 0) {
+      // Начисляем награду
+      appState.balance += block.reward;
+      updateUI();
 
-        const { error: balanceError } = await supabase
-          .from('users')
-          .update({ cash: appState.balance })
-          .eq('user_id', appState.userId);
-        
-        if (balanceError) throw balanceError;
+      const { error: balanceError } = await supabase
+        .from('users')
+        .update({ cash: appState.balance })
+        .eq('user_id', appState.userId);
+      
+      if (balanceError) throw balanceError;
 
-        showSuccess(`Вы выполнили все задания блока и получили ${block.reward} AVVA!`);
-      }
-
+      showSuccess(`Вы выполнили все задания и получили ${block.reward} AVVA!`);
       await loadTasks();
-    } else {
-      renderTasks();
     }
-
-    return true;
   } catch (error) {
     console.error("Ошибка выполнения задания:", error);
     throw error;
   }
 }
 
-function showConfirmAvvaModal(price, reward, blockId, startButton, blockCard) {
-  const modal = document.getElementById('confirmAvvaModal');
-  const textElement = document.getElementById('confirmAvvaText');
-  const button = document.getElementById('confirmAvvaBtn');
-  
-  textElement.innerHTML = `Вы уверены, что хотите потратить <strong>${price} AVVA</strong> для доступа к заданиям?<br><br>Награда: <strong>${reward} AVVA</strong>`;
-  
-  button.onclick = async function() {
-    try {
-      if (appState.balance < price) {
-        showError(`Недостаточно AVVA. Нужно: ${price}, у вас: ${appState.balance}`);
-        closeModal('confirmAvvaModal');
-        return;
-      }
-      
-      await startTask(price, blockId);
-      startButton.style.display = 'none';
-      const accessBadge = document.createElement('div');
-      accessBadge.className = 'badge badge-success';
-      accessBadge.innerHTML = '<i class="fas fa-check-circle"></i> Доступ открыт';
-      blockCard.appendChild(accessBadge);
-      closeModal('confirmAvvaModal');
-    } catch (error) {
-      console.error("Ошибка при начале задания:", error);
-      showError("Ошибка при начале задания");
-      closeModal('confirmAvvaModal');
-    }
-  };
-  
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
-}
-
-async function startTask(avvaCost, blockId) {
-  if (appState.balance < avvaCost) {
-    showError("Недостаточно AVVA на балансе");
-    return;
-  }
-
-  try {
-    appState.balance -= avvaCost;
-    updateUI();
-
-    const { error: balanceError } = await supabase
-      .from('users')
-      .update({ cash: appState.balance })
-      .eq('user_id', appState.userId);
-
-    if (balanceError) throw balanceError;
-
-    await updateTaskAccess(blockId);
-
-    showSuccess(`Списано ${avvaCost} AVVA. Теперь у вас есть доступ к заданиям блока.`);
-    
-    await loadTasks();
-    
-  } catch (error) {
-    console.error("Ошибка:", error);
-    appState.balance += avvaCost;
-    updateUI();
-    showError("Ошибка при начале задания");
-  }
-}
-
-async function loadTeams() {
-  try {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('team_id, score')
-      .order('score', { ascending: false });
-
-    if (error) throw error;
-    
-    if (data) {
-      appState.teams = data;
-      renderTeams();
-    }
-  } catch (error) {
-    console.error("Ошибка загрузки команд:", error);
-    showError("Ошибка загрузки списка команд");
-  }
-}
-
-function renderTeams() {
-  const teamsContainer = document.getElementById('teams-page');
-  if (!teamsContainer) return;
-
-  const existingCards = teamsContainer.querySelectorAll('.card');
-  existingCards.forEach(card => card.remove());
-
-  appState.teams.forEach((team, index) => {
-    const teamCard = document.createElement('div');
-    teamCard.className = 'card';
-    
-    const isTopTeam = index < 3;
-    const badgeText = isTopTeam ? `Топ ${index + 1}` : `Очки: ${team.score}`;
-    
-    teamCard.innerHTML = `
-      <div class="card-title">
-        <i class="fas ${isTopTeam ? 'fa-crown' : 'fa-users'}"></i>
-        Команда #${team.team_id}
-      </div>
-      <div class="badge ${isTopTeam ? 'badge-premium' : 'badge-primary'}">
-        ${badgeText}
-      </div>
-      <p class="card-description">
-        ${isTopTeam ? 'Лидер рейтинга' : 'Присоединяйтесь и зарабатывайте очки'}
-      </p>
-    `;
-    
-    teamsContainer.appendChild(teamCard);
-  });
-}
-
-function showTaskDetails(task) {
-  appState.currentTask = task;
-  switchTab('task-details');
-}
-
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-  tg.HapticFeedback.impactOccurred('light');
-}
-
-function showSuccess(message) {
-  const modal = document.getElementById('successModal');
-  const textElement = document.getElementById('successText');
-  textElement.textContent = message;
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
-}
-
-function showError(message) {
-  const modal = document.getElementById('errorModal');
-  const textElement = document.getElementById('errorText');
-  textElement.textContent = message;
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('heavy');
-}
-
-function switchTab(tabName) {
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.remove('active');
-  });
-  
-  if (tabName !== 'task-details') {
-    document.querySelector(`.nav-item[onclick="switchTab('${tabName}')"]`).classList.add('active');
-  }
-  
-  document.querySelectorAll('.page').forEach(page => {
-    page.classList.remove('active');
-  });
-  
-  document.getElementById(`${tabName}-page`).classList.add('active');
-}
-
-async function loadUserData() {
-  if (!appState.userId) return;
-  
-  try {
-    const { data } = await supabase
-      .from('users')
-      .select('cash')
-      .eq('user_id', appState.userId)
-      .single();
-
-    if (data) {
-      appState.balance = data.cash;
-      updateUI();
-    }
-  } catch (error) {
-    console.error("Ошибка загрузки данных:", error);
-    showError("Ошибка загрузки данных");
-  }
-}
-
-async function loadAllRatings() {
-  try {
-    // Рейтинг по балансу
-    const { data: cashData } = await supabase
-      .from('users')
-      .select('user_id, cash, name')
-      .order('cash', { ascending: false })
-      .limit(10);
-    
-    // Рейтинг по заданиям
-    const { data: tasksData } = await supabase
-      .from('users')
-      .select('user_id, countoftasks, name')
-      .order('countoftasks', { ascending: false })
-      .limit(10);
-    
-    // Рейтинг по инвайтам (новый подход)
-    // 1. Сначала получаем топ команд по количеству участников
-    const { data: topTeams } = await supabase
-      .from('teams')
-      .select('team_id, members')
-      .order('members', { ascending: false })
-      .limit(10);
-    
-    // 2. Получаем информацию о капитанах этих команд
-    let invitesData = [];
-    if (topTeams && topTeams.length > 0) {
-      // Собираем ID капитанов
-      const captainIds = topTeams.map(team => team.team_id);
-      
-      // Получаем данные капитанов
-      const { data: captainsData } = await supabase
-        .from('users')
-        .select('user_id, name')
-        .in('user_id', captainIds);
-      
-      // Сопоставляем данные капитанов с командами
-      invitesData = topTeams.map(team => {
-        const captain = captainsData?.find(c => c.user_id === team.team_id) || {};
-        return {
-          user_id: team.team_id,
-          name: captain.name || `Капитан ${team.team_id}`,
-          members: team.members || team.members 
-        };
-      });
-    }
-    
-    // Обновляем состояние приложения
-    if (cashData) appState.ratings.cash = cashData;
-    if (tasksData) appState.ratings.tasks = tasksData;
-    appState.ratings.invites = invitesData;
-    
-    renderAllRatings();
-  } catch (error) {
-    console.error("Ошибка загрузки рейтингов:", error);
-    showError("Ошибка загрузки рейтингов");
-  }
-}
-
-function renderRatingList(elementId, data, valueField) {
-  const container = document.getElementById(elementId);
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (data.length === 0) {
-    container.innerHTML = '<div class="loading">Нет данных</div>';
-    return;
-  }
-  
-  data.forEach((user, index) => {
-    const item = document.createElement('div');
-    item.className = 'rating-item';
-    
-    const userName = user.name || `Игрок ${user.user_id?.slice(0, 4) || '---'}`;
-    
-    // Для рейтинга по инвайтам добавляем иконку людей
-    const valueContent = elementId === 'invites-rating' 
-      ? `<i class="fas fa-users"></i> ${user[valueField] || 0}`
-      : user[valueField] || 0;
-    
-    item.innerHTML = `
-      <div class="rating-position">${index + 1}</div>
-      <div class="rating-user" title="${userName}">${userName}</div>
-      <div class="rating-value">${valueContent}</div>
-    `;
-    
-    container.appendChild(item);
-  });
-}
-
-function renderAllRatings() {
-  renderRatingList('cash-rating', appState.ratings.cash, 'cash');
-  renderRatingList('tasks-rating', appState.ratings.tasks, 'countoftasks');
-  renderRatingList('invites-rating', appState.ratings.invites, 'invites');
-}
-
-
-// Добавить новые функции
+// Реферальная система
 function showReferralModal() {
   if (!appState.userId) {
     showError("Не удалось получить ID пользователя");
@@ -955,19 +601,18 @@ function showReferralModal() {
   
   const modal = document.getElementById('referralModal');
   const linkInput = document.getElementById('referralLink');
-  linkInput.value = appState.referralLink;
-  
-  modal.classList.add('active');
-  tg.HapticFeedback.impactOccurred('light');
+  if (modal && linkInput) {
+    linkInput.value = appState.referralLink;
+    modal.classList.add('active');
+    tg.HapticFeedback.impactOccurred('light');
+  }
 }
 
 function copyReferralLink() {
   if (!appState.referralLink) return;
   
   navigator.clipboard.writeText(appState.referralLink)
-    .then(() => {
-      showSuccess("Ссылка скопирована в буфер обмена");
-    })
+    .then(() => showSuccess("Ссылка скопирована"))
     .catch(err => {
       console.error("Ошибка копирования:", err);
       showError("Не удалось скопировать ссылку");
@@ -977,67 +622,47 @@ function copyReferralLink() {
 function shareToTelegram() {
   if (!appState.referralLink) return;
   
-  const text = `Присоединяйся к игре AVVA через мою реферальную ссылку: ${appState.referralLink}`;
-  const url = `https://t.me/share/url?url=${encodeURIComponent(appState.referralLink)}&text=${encodeURIComponent(text)}`;
-  
+  const url = `https://t.me/share/url?url=${encodeURIComponent(appState.referralLink)}&text=Присоединяйся к игре AVVA!`;
   window.open(url, '_blank');
 }
 
-function shareToOther() {
-  if (!appState.referralLink) return;
-  
-  if (navigator.share) {
-    navigator.share({
-      title: 'Присоединяйся к AVVA Game',
-      text: 'Играй и зарабатывай вместе со мной!',
-      url: appState.referralLink
-    }).catch(err => {
-      console.error("Ошибка sharing API:", err);
-    });
-  } else {
-    copyReferralLink();
+// Навигация по вкладкам
+function switchTab(tabName) {
+  // Скрываем все страницы
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+  });
+
+  // Показываем выбранную страницу
+  const activePage = document.getElementById(`${tabName}-page`);
+  if (activePage) activePage.classList.add('active');
+
+  // Обновляем навигационную панель
+  document.querySelectorAll('.tab-2, .tab-3').forEach(tab => {
+    tab.classList.remove('tab-2');
+    tab.classList.add('tab-3');
+  });
+
+  const activeTab = document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+  if (activeTab) {
+    activeTab.classList.remove('tab-3');
+    activeTab.classList.add('tab-2');
   }
+
+  // Обновляем заголовок страницы
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle) {
+    const titles = {
+      'home': 'Игра',
+      'teams': 'Команды',
+      'rating': 'Рейтинг',
+      'market': 'Финансы'
+    };
+    pageTitle.textContent = titles[tabName] || 'Игра';
+  }
+
+  tg.HapticFeedback.impactOccurred('light');
 }
 
-
-
-async function initApp() {
-  try {
-    console.log("Инициализация приложения...");
-    
-    updateUI();
-    await loadUserData();
-    await initUserTasks();
-    await loadTeams();
-    await loadTasks();
-    await loadAllRatings();
-    switchTab('home');
-
-    // Восстанавливаем таймеры
-    restoreTimers();
-
-    // Сохраняем таймеры при закрытии
-    window.addEventListener('beforeunload', saveTimersToStorage);
-
-    // Экспорт функций
-    window.closeModal = closeModal;
-    window.switchTab = switchTab;
-    window.startTask = startTask;
-    window.showTaskDetails = showTaskDetails;
-    window.showConfirmAvvaModal = showConfirmAvvaModal;
-    window.completeTaskFromLink = completeTaskFromLink;
-    window.showReferralModal = showReferralModal;
-    window.copyReferralLink = copyReferralLink;
-    window.shareToTelegram = shareToTelegram;
-    window.shareToOther = shareToOther;
-
-    console.log("Приложение успешно инициализировано");
-    hideLoading();
-  } catch (error) {
-    console.error("Ошибка инициализации:", error);
-    showError("Ошибка загрузки приложения: " + error.message);
-    hideLoading();
-  }
-}
-
+// Инициализация приложения
 document.addEventListener('DOMContentLoaded', initApp);
