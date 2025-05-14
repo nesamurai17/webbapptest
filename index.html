@@ -1,277 +1,129 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AVVA Game</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Геометрия вышивки</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-  <div class="game-squad">
-    <div class="cover">
-      <div class="inner">
-        <div class="top">
-          <div class="frame">
-            <div class="frame-2"></div>
-            <div class="boost-header-text">Avvatar Influence Media</div>
-          </div>
-          <div class="header-2">
-            <div class="user-info-container">
-              <div class="user-avatar">
-                <img id="user-avatar" class="image" src="https://via.placeholder.com/60" alt="User Avatar">
-                <div id="username" class="text-wrapper-2">Загрузка...</div>
-              </div>
-              <div class="frame-3">
-                <div class="frame-4">
-                  <div class="wallet-info">
-                    <div class="coin-balance" id="balance">0 AVVA</div>
-                  </div>
-                </div>
-                <div class="wallet-info">
-                  <div id="wallet-address" class="text-wrapper-2">Не подключен</div>
-                </div>
-              </div>
+    <header>
+        <div class="container">
+            <h1>ГЕОМЕТРИЯ ВЫШИВКИ</h1>
+            <p class="tagline">Машинная вышивка примиум-класса</p>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section class="container about-section">
+            <div class="about-text">
+                <h2>О нас</h2>
+                <p>Машиннaя вышивка на одеждe оптом и розницу любoй слoжноcти в корoткие cpoки. Ищете уникальный способ оформить одежду, аксессуары или домашний текстиль? Наша машинная вышивка — идеальное решение!</p>
             </div>
-          </div>
-        </div>
-
-        <div class="boost-header-wrapper">
-          <div class="boost-header">
-            <div id="page-title" class="boost-header-text-2">Игра</div>
-            <div class="loop"><div class="ellipse-2"></div></div>
-          </div>
-        </div>
-
-        <div class="content-wrapper">
-          <!-- Home Page -->
-          <div id="home-page" class="page active">
-            <div class="cover-2">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Реферальная программа</div>
-                  <div class="frame-7">
-                    <div class="card-title">Приглашайте друзей и получайте бонусы</div>
-                  </div>
-                  <div class="frame-8">
-                    <button class="div-wrapper" onclick="showReferralModal()">
-                      <div class="text-wrapper-5">Создать ссылку</div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Витрина NFT</div>
-                  <div class="frame-7">
-                    <div class="card-title">Здесь пока пусто</div>
-                  </div>
-                </div>
-              </div>
+            <div class="about-image">
+                <img src="0.jpg" alt="Наша команда">
             </div>
-          </div>
+        </section>
 
-          <!-- Tasks Page -->
-          <div id="tasks-page" class="page">
-            <div class="cover-2" id="tasks-container">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Задания</div>
-                  <div class="frame-7">
-                    <div class="card-title">Зарабатывайте очки, выполняя задания</div>
-                  </div>
+        <section class="container">
+            <h2>Наши услуги</h2>
+            <div class="gallery">
+                <div class="gallery-item">
+                    <img src="1.jpg" alt="Проект 1">
+                    <div class="gallery-caption">
+                        <h3>Любые эскизы</h3>
+                        <p>Дeлaeм вышивку изoбpажений от cамыx прocтых дo слoжнeйших худoжественных эскизoв</p>
+                    </div>
                 </div>
-              </div>
+                <div class="gallery-item">
+                    <img src="2.jpg" alt="Проект 2">
+                    <div class="gallery-caption">
+                        <h3>Любой элемент одежды</h3>
+                        <p>Вышивка на готoвoй oдеждe, aксессуaрax, крое,  толстовкaх, бoмбеpах, фapтукax, pубашках, футболках, мерче, шопперах, кепок и т. д.</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <img src="3.jpg" alt="Проект 3">
+                    <div class="gallery-caption">
+                        <h3>Тонкая работа</h3>
+                        <p>Вышивка логотипов, эмблем, инициалов, текстов, шевронов, нашивок</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <img src="4.jpg" alt="Проект 3">
+                    <div class="gallery-caption">
+                        <h3>Брендирование</h3>
+                        <p>Корпоративные вышивки для униформы и спецодежды</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <img src="5.jpg" alt="Проект 3">
+                    <div class="gallery-caption">
+                        <h3>Своё производство</h3>
+                        <p>Своё производство:
+                        футболки, футболки оверсайз, 
+                        худи, худи оверсайз, 
+                        свитшот, свитшот оверсайз</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <img src="6.jpg" alt="Проект 3">
+                    <div class="gallery-caption">
+                        <h3>Наши преимущества</h3>
+                        <p>- Индивидуальный пoдxод к каждому клиенту</p>
+                        <p> - Oтличное качecтвo</p>
+                        <p>  - Opгaнизaция срочной доставки по Москве</p>
+                        <p>   - Работаем по всей России</p>
+                    </div>
+                </div>
             </div>
-          </div>
+        </section>
+    </main>
 
-          <!-- Teams Page -->
-          <div id="teams-page" class="page">
-            <div class="cover-2" id="teams-container">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Моя команда</div>
-                  <div class="frame-7">
-                    <div class="card-title">Список участников вашей команды</div>
-                  </div>
+    <section class="contact-section">
+        <div class="container">
+            <h2>Контакты</h2>
+            <p>Уникальное предложение: Подписчикам ТГ канала 10% скидка</p>
+            
+            <div class="contact-info">
+                <div class="contact-card">
+                    <i class="fas fa-phone"></i>
+                    <h3>Телефон</h3>
+                    <div class="phone-numbers">
+                        <div class="phone-number">
+                            <p>+7 (968) 391-39-51</p>
+                            <div class="phone-icons">
+                                <a href="https://t.me/+79683913951" target="_blank"><i class="fab fa-telegram"></i></a>
+                                <a href="https://wa.me/79683913951" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                            </div>
+                        </div>
+                        <div class="phone-number">
+                            <p>+7 (905) 728-22-02</p>
+                            <div class="phone-icons">
+                                <a href="https://t.me/+79057282202" target="_blank"><i class="fab fa-telegram"></i></a>
+                                <a href="https://wa.me/79057282202" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <p>Пишите в WhatsApp и Telegram</p>
                 </div>
-              </div>
+                <div class="contact-card">
+                    <i class="fas fa-envelope"></i>
+                    <h3>Телеграм</h3>
+                    <!-- <a id="contactBtn" class="btn" href="https://t.me/Embroidery_Geometry" target="_blank">Написать нам</a> -->
+                    <button id="contactBtn" class="btn" url = "https://t.me/Embroidery_Geometry">Перейти в канал</button>
+                </div>
             </div>
-          </div>
-
-          <!-- Rating Page -->
-          <div id="rating-page" class="page">
-            <div class="cover-2">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">Рейтинг игроков</div>
-                  <div class="frame-7">
-                    <div class="card-title">Топ 10 по разным категориям</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">По балансу</div>
-                  <div id="cash-rating" class="frame-7">
-                    <div class="card-title">Загрузка...</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">По заданиям</div>
-                  <div id="tasks-rating" class="frame-7">
-                    <div class="card-title">Загрузка...</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">По инвайтам</div>
-                  <div id="invites-rating" class="frame-7">
-                    <div class="card-title">Загрузка...</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Market Page -->
-          <div id="market-page" class="page">
-            <div class="cover-2" id="market-container">
-              <div class="task-card">
-                <div class="inner-2">
-                  <div class="coin-balance-2">NFT Маркет</div>
-                  <div class="frame-7">
-                    <div class="card-title">Покупайте и продавайте</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
+    </section>
 
-    <!-- Bottom Navigation -->
-    <div class="tabbar">
-      <div class="tabbar-2">
-        <div class="tab-2" onclick="switchTab('home')">
-          <div class="content-2">
-            <i class="fas fa-gamepad"></i>
-            <div class="label">Игра</div>
-          </div>
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 "Геометрия вышивки". Все права защищены.</p>
         </div>
-        <div class="tab-3" onclick="switchTab('tasks')">
-          <div class="content-2">
-            <i class="fas fa-tasks"></i>
-            <div class="label">Задания</div>
-          </div>
-        </div>
-        <div class="tab-3" onclick="switchTab('teams')">
-          <div class="content-2">
-            <i class="fas fa-users"></i>
-            <div class="label">Команды</div>
-          </div>
-        </div>
-        <div class="tab-3" onclick="switchTab('rating')">
-          <div class="content-2">
-            <i class="fas fa-trophy"></i>
-            <div class="label">Рейтинг</div>
-          </div>
-        </div>
-        <div class="tab-3" onclick="switchTab('market')">
-          <div class="content-2">
-            <i class="fas fa-shopping-bag"></i>
-            <div class="label">Маркет</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    </footer>
 
-  <!-- Модальные окна -->
-  <!-- Confirm AVVA Modal -->
-  <div id="confirmAvvaModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">
-        Подтверждение списания
-      </h3>
-      <p id="confirmAvvaText" class="modal-text"></p>
-      <div class="frame-8">
-        <button class="div-wrapper" onclick="closeModal('confirmAvvaModal')">
-          <div class="text-wrapper-5">Отмена</div>
-        </button>
-        <button id="confirmAvvaBtn" class="div-wrapper">
-          <div class="text-wrapper-5">Подтвердить</div>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Success Modal -->
-  <div id="successModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">
-        Успех!
-      </h3>
-      <p id="successText" class="modal-text"></p>
-      <div class="frame-8">
-        <button class="div-wrapper" onclick="closeModal('successModal')">
-          <div class="text-wrapper-5">ОК</div>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Error Modal -->
-  <div id="errorModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">
-        Ошибка
-      </h3>
-      <p id="errorText" class="modal-text"></p>
-      <div class="frame-8">
-        <button class="div-wrapper" onclick="closeModal('errorModal')">
-          <div class="text-wrapper-5">ОК</div>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Referral Modal -->
-  <div id="referralModal" class="modal">
-    <div class="modal-content">
-      <h3 class="modal-title">
-        Ваша реферальная ссылка
-      </h3>
-      <div class="modal-text">
-        <div class="frame-7">
-          <input type="text" id="referralLink" readonly class="p">
-        </div>
-        <div class="frame-8">
-          <button class="div-wrapper" onclick="copyReferralLink()">
-            <div class="text-wrapper-5">Копировать</div>
-          </button>
-          <button class="div-wrapper" onclick="shareToTelegram()">
-            <div class="text-wrapper-5">Telegram</div>
-          </button>
-        </div>
-      </div>
-      <div class="frame-8">
-        <button class="div-wrapper" onclick="closeModal('referralModal')">
-          <div class="text-wrapper-5">Закрыть</div>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
